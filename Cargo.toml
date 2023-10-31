@@ -9,6 +9,7 @@ edition = "2021"
 prost = "0.12.1"
 tokio = { version = "1.19.2", features = ["macros", "rt-multi-thread"] }
 tonic = "0.10.2"
+gtk = { version = "0.7.3", package = "gtk4", features = ["v4_6"] }
 
 [build-dependencies]
 tonic-build = "0.10.2"
@@ -22,3 +23,8 @@ path = "src/voting/server.rs"
 [[bin]]
 name = "voting-client"
 path = "src/voting/client.rs"
+
+# gRPC test client binary
+[[bin]]
+name = "gui"
+path = "src/gui/gui.rs"
