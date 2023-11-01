@@ -1,3 +1,5 @@
+use crate::node::Node;
+
 pub struct MapReduceApp {
     running: bool,
     num_workers: u8,
@@ -48,7 +50,7 @@ impl eframe::App for MapReduceApp {
 
                 #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
                 {
-                    ui.menu_button("File", |ui| {
+                    ui.menu_button("File", |ui: &mut egui::Ui| {
                         if ui.button("Quit").clicked() {
                             _frame.close();
                         }
@@ -57,13 +59,18 @@ impl eframe::App for MapReduceApp {
             });
         });
 
-        egui::SidePanel::right("sidebar").show(ctx, |ui| {
+        egui::SidePanel::right("sidebar").show(ctx, |ui: &mut egui::Ui| {
+            ui.add_space(4.0);
+
+            let node = Node::new(0, "Node 1".to_string(), egui::Pos2::new(250.0, 250.0));
+            node.ui(ui);
+
             ui.heading("Controls");
 
             ui.separator();
 
-            ui.horizontal(|ui| {
-                ui.vertical(|ui| {
+            ui.horizontal(|ui: &mut egui::Ui| {
+                ui.vertical(|ui: &mut egui::Ui| {
                     ui.add_space(2.5);
                     ui.label("Number of workers: ");
                     ui.add_space(13.5);
@@ -72,12 +79,12 @@ impl eframe::App for MapReduceApp {
                     ui.label("Chunk size: ");
                 });
 
-                ui.vertical(|ui| {
-                    ui.add(egui::Slider::new(&mut self.num_workers, 1..=12).text("value"));
+                ui.vertical(|ui: &mut egui::Ui| {
+                    ui.add(egui::Slider::new(&mut self.num_workers, 1..=12));
                     ui.add_space(10.0);
-                    ui.add(egui::Slider::new(&mut self.reduce_jobs, 2..=32).text("value"));
+                    ui.add(egui::Slider::new(&mut self.reduce_jobs, 2..=32));
                     ui.add_space(10.0);
-                    ui.add(egui::Slider::new(&mut self.chunk_size, 32..=204800).text("value"))
+                    ui.add(egui::Slider::new(&mut self.chunk_size, 32..=204800))
                 });
             });
 
@@ -87,29 +94,33 @@ impl eframe::App for MapReduceApp {
 
             ui.add_space(10.0);
 
-            ui.horizontal(|ui| {
+            ui.horizontal(|ui: &mut egui::Ui| {
                 let mut button_label = "Run";
                 if self.running {
                     button_label = "Stop";
                 }
-                let button = egui::Button::new(button_label).min_size(egui::vec2(300.0, 30.0));
+                let button: egui::Button<'_> =
+                    egui::Button::new(button_label).min_size(egui::vec2(275.0, 30.0));
                 if ui.add(button).clicked() {
                     self.running = !self.running;
                 };
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
-                ui.separator();
-            });
+        egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
+            ui.with_layout(
+                egui::Layout::bottom_up(egui::Align::LEFT),
+                |ui: &mut egui::Ui| {
+                    powered_by_egui_and_eframe(ui);
+                    ui.separator();
+                },
+            );
         });
     }
 }
 
 fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
+    ui.horizontal(|ui: &mut egui::Ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
         ui.label("See source code: ");
         ui.hyperlink_to(
