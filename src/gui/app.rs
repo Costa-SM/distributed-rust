@@ -1,11 +1,11 @@
-pub struct TemplateApp {
+pub struct MapReduceApp {
     running: bool,
     num_workers: u8,
     reduce_jobs: u8,
     chunk_size: u32,
 }
 
-impl Default for TemplateApp {
+impl Default for MapReduceApp {
     fn default() -> Self {
         Self {
             running: false,
@@ -16,7 +16,7 @@ impl Default for TemplateApp {
     }
 }
 
-impl TemplateApp {
+impl MapReduceApp {
     /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
@@ -32,7 +32,7 @@ impl TemplateApp {
     }
 }
 
-impl eframe::App for TemplateApp {
+impl eframe::App for MapReduceApp {
     /// Called by the frame work to save state before shutdown.
     // fn save(&mut self, storage: &mut dyn eframe::Storage) {
     //     eframe::set_value(storage, eframe::APP_KEY, self);
@@ -40,12 +40,7 @@ impl eframe::App for TemplateApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-
             egui::menu::bar(ui, |ui| {
                 egui::widgets::global_dark_light_mode_switch(ui);
 
