@@ -1,5 +1,5 @@
 pub struct TemplateApp {
-    // Example stuff:
+    running: bool,
     num_workers: u8,
     reduce_jobs: u8,
     chunk_size: u32,
@@ -8,7 +8,7 @@ pub struct TemplateApp {
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
-            // Example stuff:
+            running: false,
             num_workers: 1,
             reduce_jobs: 2,
             chunk_size: 128,
@@ -84,6 +84,23 @@ impl eframe::App for TemplateApp {
                     ui.add_space(10.0);
                     ui.add(egui::Slider::new(&mut self.chunk_size, 32..=204800).text("value"))
                 });
+            });
+
+            ui.add_space(10.0);
+
+            ui.separator();
+
+            ui.add_space(10.0);
+
+            ui.horizontal(|ui| {
+                let mut button_label = "Run";
+                if self.running {
+                    button_label = "Stop";
+                }
+                let button = egui::Button::new(button_label).min_size(egui::vec2(300.0, 30.0));
+                if ui.add(button).clicked() {
+                    self.running = !self.running;
+                };
             });
         });
 
