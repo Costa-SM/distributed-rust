@@ -7,7 +7,7 @@ impl eframe::App for MapReduceApp {
         render_header(ctx, frame);
         self.render_controls(ctx);
         egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
-            self.render_nodes(ui);
+            self.render_workers(ui);
             render_footer(ui);
         });
     }

@@ -7,6 +7,17 @@ pub struct Worker {
     working: bool,
 }
 
+enum NodeType {
+    Map,
+    Reduce,
+}
+
+pub struct Node {
+    node_type: NodeType,
+    title: String,
+    position: egui::Pos2,
+}
+
 pub struct MapReduceApp {
     running: bool,
     num_workers: u8,
@@ -80,13 +91,13 @@ impl MapReduceApp {
         });
     }
 
-    pub fn render_nodes(&mut self, ui: &mut eframe::egui::Ui) {
+    pub fn render_workers(&mut self, ui: &mut eframe::egui::Ui) {
         for node in self.nodes.iter_mut() {
-            Self::render_node(node, ui);
+            Self::render_worker(node, ui);
         }
     }
 
-    fn render_node(node: &mut Worker, ui: &mut egui::Ui) {
+    fn render_worker(node: &mut Worker, ui: &mut egui::Ui) {
         let node_id = ui.make_persistent_id(node.id);
 
         let _node_window = egui::Area::new(node_id)
@@ -128,10 +139,3 @@ impl MapReduceApp {
             });
     }
 }
-
-// impl App for MapReduceApp {
-//     // Called by the frame work to save state before shutdown.
-//     // fn save(&mut self, storage: &mut dyn eframe::Storage) {
-//     //     eframe::set_value(storage, eframe::APP_KEY, self);
-//     // }
-// }
