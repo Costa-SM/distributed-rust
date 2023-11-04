@@ -7,16 +7,16 @@ pub struct Worker {
     working: bool,
 }
 
-enum NodeType {
-    Map,
-    Reduce,
-}
+// enum NodeType {
+//     Map,
+//     Reduce,
+// }
 
-pub struct Node {
-    node_type: NodeType,
-    title: String,
-    position: egui::Pos2,
-}
+// pub struct Node {
+//     node_type: NodeType,
+//     title: String,
+//     position: egui::Pos2,
+// }
 
 pub struct MapReduceApp {
     running: bool,
@@ -52,39 +52,79 @@ impl MapReduceApp {
                     ui.label("Chunk size: ");
                 });
                 ui.vertical(|ui: &mut egui::Ui| {
-                    if ui
-                        .add(egui::Slider::new(&mut self.num_workers, 0..=8))
-                        .changed()
-                    {
-                        self.nodes.clear();
-                        for i in 0..self.num_workers {
-                            let node_x_pos: f64 = 50.0 + i.to_f64() * 135.0;
-                            self.nodes.push(Worker {
-                                id: i + 1,
-                                title: format!("Worker {}", i + 1),
-                                position: egui::Pos2::new(node_x_pos as f32, 50.0),
-                                working: true,
-                            });
-                        }
-                    };
-
+                    if !self.running {
+                        if ui
+                            .add(egui::Slider::new(&mut self.num_workers, 0..=8))
+                            .changed()
+                        {
+                            self.nodes.clear();
+                            for i in 0..self.num_workers {
+                                let node_x_pos: f64 = 50.0 + i.to_f64() * 135.0;
+                                self.nodes.push(Worker {
+                                    id: i + 1,
+                                    title: format!("Worker {}", i + 1),
+                                    position: egui::Pos2::new(node_x_pos as f32, 50.0),
+                                    working: true,
+                                });
+                            }
+                        };
+                    } else {
+                        ui.add_space(2.5);
+                        ui.label(self.num_workers.to_string());
+                    }
                     ui.add_space(10.0);
-                    ui.add(egui::Slider::new(&mut self.reduce_jobs, 2..=32));
+                    if !self.running {
+                        if ui
+                            .add(egui::Slider::new(&mut self.reduce_jobs, 2..=32))
+                            .changed()
+                        {
+                            // TODO: update reduce jobs ?
+                        };
+                    } else {
+                        ui.add_space(2.5);
+                        ui.label(self.reduce_jobs.to_string());
+                    }
                     ui.add_space(10.0);
-                    ui.add(egui::Slider::new(&mut self.chunk_size, 32..=204800))
+                    if !self.running {
+                        if ui
+                            .add(egui::Slider::new(&mut self.chunk_size, 32..=204800))
+                            .changed()
+                        {
+                            // TODO: update chunk size ?
+                        };
+                    } else {
+                        ui.add_space(2.5);
+                        ui.label(self.chunk_size.to_string());
+                    }
                 });
             });
             ui.add_space(10.0);
             ui.separator();
             ui.add_space(10.0);
             ui.horizontal(|ui: &mut egui::Ui| {
-                let mut button_label = "Run";
-                if self.running {
-                    button_label = "Stop";
+                let button_label: &str = if !self.running { "Run" } else { "Stop" };
+                let disabled: bool = if !self.running && self.num_workers == 0 {
+                    true
+                } else {
+                    false
+                };
+                let button_font_color: egui::Color32;
+                let button_cursor_icon: egui::CursorIcon;
+                let button_background_color: egui::Color32;
+                if disabled {
+                    button_background_color = egui::Color32::from_rgb(192, 128, 128);
+                    button_cursor_icon = egui::CursorIcon::NotAllowed;
+                    button_font_color = egui::Color32::BLACK;
+                } else {
+                    button_background_color = egui::Color32::DARK_GRAY;
+                    button_cursor_icon = egui::CursorIcon::PointingHand;
+                    button_font_color = egui::Color32::LIGHT_GRAY;
                 }
                 let button: egui::Button<'_> =
-                    egui::Button::new(button_label).min_size(egui::vec2(275.0, 30.0));
-                if ui.add(button).clicked() {
+                    egui::Button::new(egui::RichText::new(button_label).color(button_font_color))
+                        .min_size(egui::vec2(275.0, 30.0))
+                        .fill(button_background_color);
+                if ui.add(button).on_hover_cursor(button_cursor_icon).clicked() && !disabled {
                     self.running = !self.running;
                 };
             });
@@ -111,10 +151,11 @@ impl MapReduceApp {
                     .show(ui, |ui| {
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
-                                let mut color = egui::Color32::DARK_GREEN;
-                                if node.working == false {
-                                    color = egui::Color32::DARK_RED;
-                                }
+                                let color = if node.working {
+                                    egui::Color32::DARK_GREEN
+                                } else {
+                                    egui::Color32::DARK_RED
+                                };
                                 ui.label(node.title.clone());
                                 ui.add_space(20.0);
                                 egui::Frame::none()
