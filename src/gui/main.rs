@@ -16,16 +16,11 @@ impl eframe::App for MapReduceApp {
 fn render_header(ctx: &egui::Context, frame: &mut eframe::Frame) {
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
         egui::menu::bar(ui, |ui| {
-            egui::widgets::global_dark_light_mode_switch(ui);
-            ui.add_space(4.0);
-            ui.separator();
-            {
-                ui.menu_button("File", |ui: &mut egui::Ui| {
-                    if ui.button("Quit").clicked() {
-                        frame.close();
-                    }
-                });
-            }
+            ui.menu_button("File", |ui: &mut egui::Ui| {
+                if ui.button("Quit").clicked() {
+                    frame.close();
+                }
+            });
         });
     });
 }

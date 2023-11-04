@@ -795,6 +795,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui",
+ "egui_file",
  "prost",
  "tokio",
  "tonic",
@@ -883,6 +884,15 @@ dependencies = [
  "web-time",
  "webbrowser",
  "winit",
+]
+
+[[package]]
+name = "egui_file"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d36bb265b94d54e34378528b5895fbf132db63a8547376947f452edfda98d2d"
+dependencies = [
+ "egui",
 ]
 
 [[package]]

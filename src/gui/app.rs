@@ -19,6 +19,8 @@ pub struct Worker {
 // }
 
 pub struct MapReduceApp {
+    opened_file: Option<std::path::PathBuf>,
+    open_file_dialog: Option<egui_file::FileDialog>,
     running: bool,
     num_workers: u8,
     reduce_jobs: u8,
@@ -27,9 +29,10 @@ pub struct MapReduceApp {
 }
 
 impl MapReduceApp {
-    /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Self {
+            opened_file: None,
+            open_file_dialog: None,
             running: false,
             num_workers: 0,
             reduce_jobs: 2,
@@ -42,6 +45,39 @@ impl MapReduceApp {
         egui::SidePanel::right("sidebar").show(ctx, |ui: &mut egui::Ui| {
             ui.heading("Controls");
             ui.separator();
+            ui.horizontal(|ui| {
+                let path_text = self.opened_file.as_ref().map_or_else(
+                    || String::default(),
+                    |path| path.to_string_lossy().to_string(),
+                );
+                let path_parts: Vec<&str> = path_text.split('/').collect();
+                let file_name = path_parts.last().unwrap().to_string();
+                let button_label = if self.opened_file.is_none() {
+                    "Select File"
+                } else {
+                    file_name.as_str()
+                };
+                let button: egui::Button<'_> = egui::Button::new(egui::RichText::new(button_label))
+                    .min_size(egui::vec2(275.0, 30.0));
+                if (ui.add(button))
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .clicked()
+                    && !self.running
+                {
+                    let mut dialog: egui_file::FileDialog =
+                        egui_file::FileDialog::open_file(self.opened_file.clone());
+                    dialog.open();
+                    self.open_file_dialog = Some(dialog);
+                }
+                if let Some(dialog) = &mut self.open_file_dialog {
+                    if dialog.show(ctx).selected() {
+                        if let Some(file) = dialog.path() {
+                            self.opened_file = Some(file.to_path_buf());
+                        }
+                    }
+                }
+            });
+            ui.add_space(5.0);
             ui.horizontal(|ui: &mut egui::Ui| {
                 ui.vertical(|ui: &mut egui::Ui| {
                     ui.add_space(2.5);
@@ -103,16 +139,17 @@ impl MapReduceApp {
             ui.add_space(10.0);
             ui.horizontal(|ui: &mut egui::Ui| {
                 let button_label: &str = if !self.running { "Run" } else { "Stop" };
-                let disabled: bool = if !self.running && self.num_workers == 0 {
-                    true
-                } else {
-                    false
-                };
+                let disabled: bool =
+                    if !self.running && (self.num_workers == 0 || self.opened_file.is_none()) {
+                        true
+                    } else {
+                        false
+                    };
                 let button_font_color: egui::Color32;
                 let button_cursor_icon: egui::CursorIcon;
                 let button_background_color: egui::Color32;
                 if disabled {
-                    button_background_color = egui::Color32::from_rgb(192, 128, 128);
+                    button_background_color = egui::Color32::from_rgb(128, 72, 72);
                     button_cursor_icon = egui::CursorIcon::NotAllowed;
                     button_font_color = egui::Color32::BLACK;
                 } else {
@@ -126,6 +163,7 @@ impl MapReduceApp {
                         .fill(button_background_color);
                 if ui.add(button).on_hover_cursor(button_cursor_icon).clicked() && !disabled {
                     self.running = !self.running;
+                    // TODO: Start map reduce with self.opened_file, self.num_workers, self.reduce_jobs, self.chunk_size
                 };
             });
         });
