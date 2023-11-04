@@ -1,4 +1,6 @@
 mod app;
+mod node;
+mod worker;
 
 use app::MapReduceApp;
 
