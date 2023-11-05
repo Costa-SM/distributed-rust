@@ -177,83 +177,129 @@ impl MapReduceApp {
     }
 
     fn build_graph(&mut self, text_length: usize) {
-        const NUM_STEPS: usize = 5;
         const NODES_TOP_Y: f32 = 150.0;
         const NODES_BOTTOM_Y: f32 = 675.0;
         const NODES_LEFT_X: f32 = 50.0;
         const NODES_RIGHT_X: f32 = 1045.0;
 
+        const NODE_HEIGHT: f32 = 30.0;
+
+        const INPUT_NODE_WIDTH: f32 = 60.0;
+        const MAP_NODE_WIDTH: f32 = 55.0;
+        const REDUCE_NODE_WIDTH: f32 = 85.0;
+        const REDUCE_RESULT_WIDTH: f32 = 70.0;
+
+        const NUM_STEPS: usize = 5;
         const NODES_X_GAP: f32 = (NODES_RIGHT_X - NODES_LEFT_X) / (NUM_STEPS - 1) as f32;
 
         self.nodes.clear();
-        let input_node_pos = egui::Pos2::new(NODES_LEFT_X, (NODES_BOTTOM_Y + NODES_TOP_Y) / 2.0);
+
+        let input_node_x = NODES_LEFT_X;
+        let input_node_y = (NODES_BOTTOM_Y + NODES_TOP_Y) / 2.0;
         self.nodes.push(Node {
             id: extract_file_name_from_path(&self.opened_file),
-            position: input_node_pos,
+            position: egui::Pos2::new(input_node_x, input_node_y),
             node_type: NodeType::Input,
         });
-        let result_node_pos = egui::Pos2::new(NODES_RIGHT_X, (NODES_BOTTOM_Y + NODES_TOP_Y) / 2.0);
-        let result_node = Node {
+
+        let result_node_x = NODES_RIGHT_X;
+        let result_node_y = (NODES_BOTTOM_Y + NODES_TOP_Y) / 2.0;
+        self.nodes.push(Node {
             id: "result".to_string(),
-            position: result_node_pos,
+            position: egui::Pos2::new(result_node_x, result_node_y),
             node_type: NodeType::Result,
-        };
-        self.nodes.push(result_node);
+        });
+
         let num_map_nodes: usize =
             ((text_length as f64 / (self.chunk_size as f64)) as f64).ceil() as usize;
         let num_reduce_nodes = num_map_nodes * self.reduce_jobs as usize;
+
+        let reduce_node_x = NODES_LEFT_X + 2.0 * NODES_X_GAP;
+        let mut current_reduce_node_y = NODES_TOP_Y;
+        let mut last_reduce_node_y = NODES_TOP_Y;
+
         let reduce_nodes_spacing: f32 =
             (NODES_BOTTOM_Y - NODES_TOP_Y) / (num_reduce_nodes - 1) as f32;
-        let node_position_x = NODES_LEFT_X + 2.0 * NODES_X_GAP;
-        let mut node_position_y = NODES_TOP_Y;
-        let mut last_node_position_y = NODES_TOP_Y;
+        let mut curr_map_node = 0;
+
         for i in 0..(((NODES_BOTTOM_Y - NODES_TOP_Y) / reduce_nodes_spacing) + 1 as f32) as i32 {
             self.nodes.push(Node {
-                id: node_position_y.to_string(),
-                position: egui::Pos2::new(node_position_x, node_position_y as f32),
+                id: "reduce-".to_string() + &curr_map_node.to_string() + "-" + &(i % 2).to_string(),
+                position: egui::Pos2::new(reduce_node_x, current_reduce_node_y as f32),
                 node_type: NodeType::Reduce,
             });
             if i % 2 == 1 {
-                let map_node_pos = egui::Pos2::new(
-                    NODES_LEFT_X + NODES_X_GAP,
-                    ((last_node_position_y + node_position_y) / 2 as f32) as f32,
-                );
+                let map_node_x = NODES_LEFT_X + NODES_X_GAP;
+                let map_node_y = ((last_reduce_node_y + current_reduce_node_y) / 2 as f32) as f32;
                 self.nodes.push(Node {
-                    id: node_position_y.to_string() + "asd",
-                    position: map_node_pos,
+                    id: "map-".to_string() + &curr_map_node.to_string(),
+                    position: egui::Pos2 {
+                        x: map_node_x,
+                        y: map_node_y,
+                    },
                     node_type: NodeType::Map,
                 });
                 self.connections.push((
-                    map_node_pos,
-                    egui::Pos2::new(node_position_x, node_position_y as f32),
+                    egui::Pos2 {
+                        x: map_node_x + MAP_NODE_WIDTH,
+                        y: map_node_y + NODE_HEIGHT / 2.0,
+                    },
+                    egui::Pos2::new(reduce_node_x, current_reduce_node_y + NODE_HEIGHT / 2.0),
                 ));
                 self.connections.push((
-                    map_node_pos,
-                    egui::Pos2::new(node_position_x, last_node_position_y as f32),
+                    egui::Pos2::new(map_node_x + MAP_NODE_WIDTH, map_node_y + NODE_HEIGHT / 2.0),
+                    egui::Pos2::new(reduce_node_x, last_reduce_node_y + NODE_HEIGHT / 2.0),
                 ));
-                self.connections.push((input_node_pos, map_node_pos));
-                let reduce_result_node_pos = egui::Pos2::new(
-                    NODES_LEFT_X + 3.0 * NODES_X_GAP,
-                    ((last_node_position_y + node_position_y) / 2 as f32) as f32,
-                );
+                self.connections.push((
+                    egui::Pos2::new(
+                        input_node_x + INPUT_NODE_WIDTH,
+                        input_node_y + NODE_HEIGHT / 2.0,
+                    ),
+                    egui::Pos2::new(map_node_x, map_node_y + NODE_HEIGHT / 2.0),
+                ));
+
+                let reduce_result_node_x = NODES_LEFT_X + 3.0 * NODES_X_GAP;
+                let reduce_result_node_y = (last_reduce_node_y + current_reduce_node_y) / 2.0;
                 self.nodes.push(Node {
-                    id: node_position_y.to_string() + "fsdg",
-                    position: reduce_result_node_pos,
+                    id: "reduce-".to_string() + &curr_map_node.to_string(),
+                    position: egui::Pos2 {
+                        x: reduce_result_node_x,
+                        y: reduce_result_node_y,
+                    },
                     node_type: NodeType::ReduceResult,
                 });
-                self.connections
-                    .push((reduce_result_node_pos, result_node_pos));
                 self.connections.push((
-                    egui::Pos2::new(node_position_x, node_position_y as f32),
-                    reduce_result_node_pos,
+                    egui::Pos2::new(
+                        reduce_node_x + REDUCE_NODE_WIDTH,
+                        current_reduce_node_y + NODE_HEIGHT / 2.0,
+                    ),
+                    egui::Pos2::new(
+                        reduce_result_node_x,
+                        reduce_result_node_y + NODE_HEIGHT / 2.0,
+                    ),
                 ));
                 self.connections.push((
-                    egui::Pos2::new(node_position_x, last_node_position_y as f32),
-                    reduce_result_node_pos,
+                    egui::Pos2::new(
+                        reduce_node_x + REDUCE_NODE_WIDTH,
+                        last_reduce_node_y + NODE_HEIGHT / 2.0,
+                    ),
+                    egui::Pos2::new(
+                        reduce_result_node_x,
+                        reduce_result_node_y + NODE_HEIGHT / 2.0,
+                    ),
                 ));
+                self.connections.push((
+                    egui::Pos2::new(
+                        reduce_result_node_x + REDUCE_RESULT_WIDTH,
+                        reduce_result_node_y + NODE_HEIGHT / 2.0,
+                    ),
+                    egui::Pos2::new(result_node_x, result_node_y + NODE_HEIGHT / 2.0),
+                ));
+
+                curr_map_node += 1;
             }
-            last_node_position_y = node_position_y;
-            node_position_y += reduce_nodes_spacing;
+            last_reduce_node_y = current_reduce_node_y;
+            current_reduce_node_y += reduce_nodes_spacing;
         }
     }
 
