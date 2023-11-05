@@ -224,11 +224,14 @@ impl MapReduceApp {
 
         for i in 0..(((NODES_BOTTOM_Y - NODES_TOP_Y) / reduce_nodes_spacing) + 1 as f32) as i32 {
             self.nodes.push(Node {
-                id: "reduce-".to_string() + &curr_map_node.to_string() + "-" + &(i % 2).to_string(),
+                id: "reduce-".to_string()
+                    + &curr_map_node.to_string()
+                    + "-"
+                    + &(i % (self.reduce_jobs as i32)).to_string(),
                 position: egui::Pos2::new(reduce_node_x, current_reduce_node_y as f32),
                 node_type: NodeType::Reduce,
             });
-            if i % 2 == 1 {
+            if i % (self.reduce_jobs as i32) == 1 {
                 let map_node_x = NODES_LEFT_X + NODES_X_GAP;
                 let map_node_y = ((last_reduce_node_y + current_reduce_node_y) / 2 as f32) as f32;
                 self.nodes.push(Node {
