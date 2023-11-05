@@ -1,5 +1,6 @@
 mod app;
 mod node;
+mod utils;
 mod worker;
 
 use app::MapReduceApp;
@@ -10,6 +11,9 @@ impl eframe::App for MapReduceApp {
         self.render_controls(ctx);
         egui::CentralPanel::default().show(ctx, |ui: &mut egui::Ui| {
             self.render_workers(ui);
+            if self.running {
+                self.render_nodes(ui);
+            }
             render_footer(ui);
         });
     }
