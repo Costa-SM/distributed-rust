@@ -6,19 +6,10 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn _new(_cc: &eframe::CreationContext<'_>) -> Self {
-        Self {
-            id: 0,
-            title: String::default(),
-            position: egui::Pos2::new(0.0, 0.0),
-            working: true,
-        }
-    }
-
     pub fn render_worker(&mut self, ui: &mut egui::Ui) {
-        let node_id = ui.make_persistent_id(self.id);
+        let worker_id = ui.make_persistent_id(self.id);
 
-        let _node_window: egui::InnerResponse<()> = egui::Area::new(node_id)
+        let _worker_window: egui::InnerResponse<()> = egui::Area::new(worker_id)
             .default_pos(self.position.clone())
             .movable(false)
             .show(ui.ctx(), |ui: &mut egui::Ui| {
