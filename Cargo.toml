@@ -26,7 +26,12 @@ path = "src/voting/server.rs"
 name = "voting-client"
 path = "src/voting/client.rs"
 
-# gRPC test client binary
+# Distributed processing GUI 
 [[bin]]
 name = "gui"
 path = "src/gui/main.rs"
+
+# Word Count
+[[bin]]
+name = "word_count"
+path = "src/map-reduce/word_count.rs"
