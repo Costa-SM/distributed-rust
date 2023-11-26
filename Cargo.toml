@@ -31,12 +31,7 @@ path = "src/voting/client.rs"
 name = "gui"
 path = "src/gui/main.rs"
 
-# gRPC test client binary
-[[bin]]
-name = "data"
-path = "src/mapreduce/data.rs"
-
 # Word Count
 [[bin]]
 name = "word_count"
-path = "src/map-reduce/word_count.rs"
+path = "src/mapreduce/word_count.rs"
