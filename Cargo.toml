@@ -12,6 +12,8 @@ tonic = "0.10.2"
 eframe = "0.23.0"
 egui = "0.23.0"
 egui_file = "0.11"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [build-dependencies]
 tonic-build = "0.10.2"
@@ -31,12 +33,7 @@ path = "src/voting/client.rs"
 name = "gui"
 path = "src/gui/main.rs"
 
-# gRPC test client binary
-[[bin]]
-name = "data"
-path = "src/mapreduce/data.rs"
-
 # Word Count
 [[bin]]
 name = "word_count"
-path = "src/map-reduce/word_count.rs"
+path = "src/mapreduce/word_count.rs"

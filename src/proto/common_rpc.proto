@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package common_rpc;
+
+import "google/protobuf/empty.proto";
+
+service MapReduceRPC {
+  // Procedure that will be called by workers to register in the master
+  rpc Register (RegisterArgs) returns (RegisterReply) {}
+
+  // Run map operation in worker
+  rpc RunMap (RunArgs) returns (google.protobuf.Empty) {}
+
+  // Run reduce operation in worker
+  rpc RunReduce (RunArgs) returns (google.protobuf.Empty) {}
+
+  // Procedure that will be called by master when the worker task is done
+  rpc Done (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+}
+
+message RegisterArgs {
+  string worker_hostname = 1;
+}
+
+message RegisterReply {
+  int32 worker_id = 1;
+  int32 reduce_jobs = 2;
+}
+
+message RunArgs {
+  int32 id = 1;
+  string file_path = 2;
+}

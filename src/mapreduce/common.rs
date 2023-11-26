@@ -15,16 +15,16 @@ pub struct Task {
     reduce: ReduceFunc,
 
     // Jobs
-    num_reduce_jobs: i32,
+    pub num_reduce_jobs: i32,
     num_map_files: i32,
 
     // Channels for data
-    input_chan: Sender<Vec<u8>>,
-    output_chan: Receiver<Vec<KeyValue>>,
+    input_chan: (Sender<Vec<u8>>, Receiver<Vec<u8>>),
+    output_chan: (Sender<Vec<KeyValue>>, Receiver<Vec<KeyValue>>),
 
     // Channels for file paths
-    input_file_path_chan: Sender<String>,
-    output_file_path_chan: Receiver<String>,
+    input_file_path_chan: (Sender<String>, Receiver<String>),
+    output_file_path_chan: (Sender<String>, Receiver<String>),
 }
 
 type MapFunc = fn(Vec<u8>) -> Vec<KeyValue>;
