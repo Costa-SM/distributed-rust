@@ -1,9 +1,11 @@
 use std::sync::mpsc::{Sender, Receiver};
+use serde::{Serialize, Deserialize};
 
 // KeyValue is the type used to hold elements of maps and reduces results.
+#[derive(Serialize, Deserialize)]
 pub struct KeyValue {
-    key: String,
-    value: String,
+    pub key: String,
+    pub value: String,
 }
 
 // Task is the exposed struct of the Framework that the calling code should initialize
@@ -11,7 +13,7 @@ pub struct KeyValue {
 pub struct Task {
     // MapReduce functions
     map: MapFunc,
-    shuffle: ShuffleFunc,
+    pub shuffle: ShuffleFunc,
     reduce: ReduceFunc,
 
     // Jobs

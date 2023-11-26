@@ -1,15 +1,14 @@
 mod common;
 
-use std::fs;
-use std::path::{Path, PathBuf};
-use serde_json;
-use std::thread::sleep;
-use std::time::Duration;
 use common::{Task, KeyValue};
+use std::fs::{self, File};
+use std::io::{self, BufReader, Write};
+use std::path;
 use std::sync::mpsc::{self, Sender, Receiver};
-use std::thread;
-use std::fs::{File, OpenOptions};
-use std::io::{BufReader, BufWriter, Error};
+use std::thread::{self, sleep};
+use std::time::Duration;
+
+use serde_json;
 
 const REDUCE_PATH: &str = "reduce";
 const RESULT_PATH: &str = "result";
@@ -29,27 +28,36 @@ pub fn reduce_name(id_map: i32, id_reduce: i32) -> String {
 
 // Store result from map operation locally.
 // This will store the result from all the map calls.
-pub fn store_local(task: &Task, id_map_task: i32, data: Vec<KeyValue>) {
+// NOTE: TESTED
+pub fn store_local(task: &Task, id_map_task: i32, data: Vec<KeyValue>) -> io::Result<()> {
     for r in 0..task.num_reduce_jobs {
-        let file_path = Path::new(REDUCE_PATH).join(reduce_name(id_map_task, r));
-        let file = fs::File::create(&file_path).expect("Error creating file");
-        let mut file_encoder = serde_json::to_writer(file, &data).expect("Error encoding JSON");
-        file_encoder.flush().expect("Error flushing buffer");
+        let file_path = path::Path::new(REDUCE_PATH).join(reduce_name(id_map_task, r));
+        let mut file = File::create(&file_path).expect("Error creating file");
+        
+        for kv in data {
+            if (task.shuffle)(task, kv.key.clone()) == r {
+                let json = serde_json::to_string(&kv)?;
+                file.write_all(json.as_bytes())?;
+                file.write_all(b"\n")?;
+            }
+        }
     }
+
+    Ok(())
 }
 
 // Merge the result from all the map operations by reduce job id.
-pub fn merge_map_local(task: &Task, map_counter: i32) {
+// NOTE: TESTED
+pub fn merge_map_local(task: &Task, map_counter: i32) -> io::Result<()> {
     for r in 0..task.num_reduce_jobs {
-        let merge_file_path = Path::new(REDUCE_PATH).join(merge_reduce_name(r));
-        let merge_file = fs::File::create(&merge_file_path).expect("Error creating file");
-        let mut merge_file_encoder =
-            serde_json::to_writer(merge_file, &()).expect("Error encoding JSON");
+        let merged_file_path = path::Path::new(REDUCE_PATH).join(merge_reduce_name(r));
+        let mut merged_file = File::create(merged_file_path)?;
 
         for m in 0..map_counter {
+            // Use max number of retries to open the file
+            let file_path = path::Path::new(REDUCE_PATH).join(reduce_name(m, r));
             for i in 0..OPEN_FILE_MAX_RETRY {
-                let file_path = Path::new(REDUCE_PATH).join(reduce_name(m, r));
-                if let Ok(file) = fs::File::open(&file_path) {
+                if let Ok(_f) = File::open(&file_path) {
                     // Read from the file
                     break;
                 }
@@ -61,57 +69,51 @@ pub fn merge_map_local(task: &Task, map_counter: i32) {
                 );
                 sleep(Duration::from_secs(1));
             }
-        }
-    }
-}
 
-// Merge the result from all the map operations by reduce job id.
-pub fn merge_reduce_local(reduce_counter: i32) -> Result<(), Error> {
-    let merge_file_path = PathBuf::from(RESULT_PATH).join("result-final.txt");
-    let merge_file = OpenOptions::new().create(true).write(true).truncate(true).open(&merge_file_path)?;
-
-    let mut merge_file_encoder = BufWriter::new(serde_json::to_writer(merge_file, &[])?);
-
-    for r in 0..reduce_counter {
-        let mut file: Option<File> = None;
-
-        for i in 0..OPEN_FILE_MAX_RETRY {
-            match File::open(result_file_name(r)) {
-                Ok(f) => {
-                    file = Some(f);
-                    break;
-                }
-                Err(_) => {
-                    eprintln!(
-                        "({}/{}) Failed to open file {}. Retrying in 1 second...",
-                        i + 1,
-                        OPEN_FILE_MAX_RETRY,
-                        result_file_name(r)
-                    );
-                    thread::sleep(Duration::from_secs(1));
-                }
-            }
-        }
-
-        if let Some(mut file) = file {
-            let file_reader = BufReader::new(&mut file);
-
-            for result in serde_json::Deserializer::from_reader(file_reader).into_iter::<KeyValue>() {
-                let kv = result?;
-                merge_file_encoder.write_all(serde_json::to_string(&kv)?.as_bytes())?;
-                merge_file_encoder.write_all(b"\n")?;
-            }
-
-            file.sync_all()?;
+            let mut file = File::open(&file_path)?;
+            // Read the contents of the file and write to the destination file
+            io::copy(&mut file, &mut merged_file)?;
         }
     }
 
     Ok(())
 }
 
+// Merge the result from all the map operations by reduce job id.
+// NOTE: TESTED
+pub fn merge_reduce_local(reduce_counter: i32) -> io::Result<()> {
+    let merged_file_path = path::Path::new(RESULT_PATH).join("result-final.txt");
+    let mut merged_file = File::create(merged_file_path)?;
+
+    for r in 0..reduce_counter {
+        // Use max number of retries to open the file
+        let file_path = result_file_name(r);
+        for i in 0..OPEN_FILE_MAX_RETRY {
+            if let Ok(_f) = File::open(&file_path) {
+                // Read from the file
+                break;
+            }
+            eprintln!(
+                "({}/{}) Failed to open file {}. Retrying in 1 second...",
+                i + 1,
+                OPEN_FILE_MAX_RETRY,
+                file_path.display()
+            );
+            sleep(Duration::from_secs(1));
+        }
+
+        let mut file = File::open(&file_path)?;
+        // Read the contents of the file and write to the destination file
+        io::copy(&mut file, &mut merged_file)?;
+    }
+
+    Ok(())
+}
+
 // Load data for reduce jobs.
-pub fn load_local(id_reduce: i32) -> Result<Vec<KeyValue>, Error> {
-    let file_path = PathBuf::from(REDUCE_PATH).join(merge_reduce_name(id_reduce));
+// NOTE: TESTED
+pub fn load_local(id_reduce: i32) -> io::Result<Vec<KeyValue>> {
+    let file_path = path::Path::new(REDUCE_PATH).join(merge_reduce_name(id_reduce));
 
     let file = File::open(&file_path)?;
     let reader = BufReader::new(file);
@@ -127,7 +129,7 @@ pub fn load_local(id_reduce: i32) -> Result<Vec<KeyValue>, Error> {
 
 // Remove all the files in a directory
 // NOTE: TESTED
-pub fn remove_contents(dir: &str) -> Result<(), std::io::Error> {
+pub fn remove_contents(dir: &str) -> io::Result<()> {
     let d = fs::read_dir(dir)?;
 
     for entry in d {
@@ -152,7 +154,7 @@ pub fn fan_reduce_file_path(num_reduce_jobs: i32) -> (Sender<String>, Receiver<S
 
     thread::spawn(move || {
         for i in 0..num_reduce_jobs {
-            let file_path = PathBuf::from(REDUCE_PATH).join(merge_reduce_name(i));
+            let file_path = path::Path::new(REDUCE_PATH).join(merge_reduce_name(i));
 
             if let Some(file_path_str) = file_path.to_str() {
                 if output_tx.send(file_path_str.to_string()).is_err() {
@@ -160,7 +162,7 @@ pub fn fan_reduce_file_path(num_reduce_jobs: i32) -> (Sender<String>, Receiver<S
                 }
             }
         }
-        // Close the channel when the loop is done
+        
         drop(output_tx); 
         drop(output_rx);
     });
@@ -170,8 +172,8 @@ pub fn fan_reduce_file_path(num_reduce_jobs: i32) -> (Sender<String>, Receiver<S
 
 // Support function to generate the name of result files.
 // NOTE: TESTED
-pub fn result_file_name(id: i32) -> String {
+pub fn result_file_name(id: i32) -> path::PathBuf {
     let file_name = format!("result-{}", id);
-    let file_path = PathBuf::from(RESULT_PATH).join(file_name);
-    file_path.to_string_lossy().to_string()
+    let file_path = path::Path::new(RESULT_PATH).join(file_name);
+    file_path
 }
