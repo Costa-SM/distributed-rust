@@ -1,21 +1,22 @@
 syntax = "proto3";
-
 package common_rpc;
 
-import "google/protobuf/empty.proto";
+// Server will be the Master, and clients will be the workers.
+service Register {
+    // Procedure that will be called by workers to register in the master
+    rpc Register (RegisterArgs) returns (RegisterReply) {}
+}
 
-service MapReduceRPC {
-  // Procedure that will be called by workers to register in the master
-  rpc Register (RegisterArgs) returns (RegisterReply) {}
-
+// Server will be the workers, and client will be the master.
+service Runner {
   // Run map operation in worker
-  rpc RunMap (RunArgs) returns (google.protobuf.Empty) {}
+  rpc RunMap (RunArgs) returns (EmptyMessage) {}
 
   // Run reduce operation in worker
-  rpc RunReduce (RunArgs) returns (google.protobuf.Empty) {}
+  rpc RunReduce (RunArgs) returns (EmptyMessage) {}
 
   // Procedure that will be called by master when the worker task is done
-  rpc Done (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc Done (EmptyMessage) returns (EmptyMessage) {}
 }
 
 message RegisterArgs {
@@ -30,4 +31,7 @@ message RegisterReply {
 message RunArgs {
   int32 id = 1;
   string file_path = 2;
+}
+
+message EmptyMessage {
 }

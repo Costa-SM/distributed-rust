@@ -37,3 +37,13 @@ path = "src/gui/main.rs"
 [[bin]]
 name = "word_count"
 path = "src/mapreduce/word_count.rs"
+
+# Master node
+[[bin]]
+name = "master"
+path = "src/mapreduce/master.rs"
+
+# Worker node
+[[bin]]
+name = "worker"
+path = "src/mapreduce/worker.rs"

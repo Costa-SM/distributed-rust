@@ -1,1 +1,0 @@
-// TODO: implement the Register function based on the RPC lib
