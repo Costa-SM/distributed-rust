@@ -48,7 +48,7 @@ impl Runner for Worker {
                 let map_result = (self.task.map)(read_string.as_bytes());
 
                 // Store the result locally.
-                let local_store = data::store_local(&self.task, args.id, map_result.clone());
+                let local_store = data::store_local(&self.task, args.id, &map_result);
 
                 match local_store {
                     Ok(_) => {

@@ -9,7 +9,7 @@ use std::num::Wrapping;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct KeyValue {
     pub key: String,
-    pub value: i32
+    pub value: String,
 }
 
 // This function receives a string obtained from the split files.
@@ -28,7 +28,7 @@ pub fn map_func(buffer: &[u8]) -> Vec<KeyValue> {
     let mut result: Vec<KeyValue> = Vec::new();
 
     for word in split {
-        result.push(KeyValue{key: word.to_string(), value: 1})
+        result.push(KeyValue{key: word.to_string(), value: "1".to_string()})
     }
 
     return result
@@ -48,7 +48,7 @@ pub fn reduce_func(inputs: &mut Vec<KeyValue>) -> &mut Vec<KeyValue> {
 
     // Update values in the vector
     for (element, count) in &element_count {
-        inputs.push(KeyValue { key: (element.to_string()), value: (*count) });
+        inputs.push(KeyValue { key: (element.to_string()), value: (*count).to_string() });
     }
 
     return inputs;

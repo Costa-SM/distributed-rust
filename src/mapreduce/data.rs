@@ -28,12 +28,12 @@ pub fn reduce_name(id_map: i32, id_reduce: i32) -> String {
 // Store result from map operation locally.
 // This will store the result from all the map calls.
 // NOTE: TESTED
-pub fn store_local(task: &common::Task, id_map_task: i32, data: Vec<word_count::KeyValue>) -> io::Result<()> {
+pub fn store_local(task: &common::Task, id_map_task: i32, data: &Vec<word_count::KeyValue>) -> io::Result<()> {
     for r in 0..task.num_reduce_jobs {
         let file_path = path::Path::new(REDUCE_PATH).join(reduce_name(id_map_task, r));
         let mut file = File::create(&file_path).expect("Error creating file");
         
-        for kv in data.clone() {
+        for kv in data {
             if (task.shuffle)(task, kv.key.clone()) == r {
                 let json = serde_json::to_string(&kv)?;
                 file.write_all(json.as_bytes())?;
