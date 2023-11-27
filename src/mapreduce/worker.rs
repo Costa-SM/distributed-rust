@@ -24,9 +24,6 @@ pub struct Worker {
     // Network
     hostname: String,
     master_hostname: String,
-    //@TODO: implement this
-    // listener:
-    // rpcServer:
 
     // Operation
     task: Arc<Mutex<common::Task>>,

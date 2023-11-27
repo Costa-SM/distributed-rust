@@ -28,9 +28,6 @@ pub struct Master {
 
     // Network
     address: std::net::SocketAddr,
-    // TODO: need check
-    // rpc_server: rpc::Server,
-    // listener: TcpListener,
 
     // Sender Channels
     idle_tx: Sender<master_remoteworker::RemoteWorker>,
@@ -76,6 +73,8 @@ impl Register for Master {
             worker_id: {*worker_count - 1} as i32,
             reduce_jobs: {1},
         }))
+
+        // Mutex is released automatically once the variable goes out of scope
     }
 }
 
