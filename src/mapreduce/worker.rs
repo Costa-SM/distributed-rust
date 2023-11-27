@@ -73,7 +73,7 @@ impl Worker {
             id,
             hostname,
             master_hostname,
-            task: Arc::new(Mutex::new(common::Task::new_task(word_count::map_func, word_count::reduce_func))),
+            task: Arc::new(Mutex::new(common::Task::new_task(word_count::map_func, word_count::shuffle_func, word_count::reduce_func))),
             done: false,
         };
     

@@ -33,11 +33,6 @@ path = "src/voting/client.rs"
 name = "gui"
 path = "src/gui/main.rs"
 
-# Word Count
-[[bin]]
-name = "word_count"
-path = "src/mapreduce/word_count.rs"
-
 # Master node
 [[bin]]
 name = "master"

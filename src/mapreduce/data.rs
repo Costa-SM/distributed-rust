@@ -1,13 +1,13 @@
 mod common;
 
-use word_count::KeyValue;
 use common::Task;
 use std::fs::{self, File};
 use std::io::{self, BufReader, Write};
 use std::path;
-use std::sync::mpsc::{self, Sender, Receiver};
-use std::thread::{self, sleep};
+use std::thread::sleep;
 use std::time::Duration;
+use tokio::sync::mpsc::{self, Sender, Receiver};
+use word_count::KeyValue;
 
 use serde_json;
 
@@ -151,14 +151,14 @@ pub fn remove_contents(dir: &str) -> io::Result<()> {
 // writing until the loop is done.
 // This is used to generate the name of all the reduce files.
 pub fn fan_reduce_file_path(num_reduce_jobs: i32) -> (Sender<String>, Receiver<String>) {
-    let (output_tx, output_rx) = mpsc::channel();
+    let (output_tx, output_rx) = mpsc::channel(1);
 
-    thread::spawn(move || {
+    tokio::spawn(async move {
         for i in 0..num_reduce_jobs {
             let file_path = path::Path::new(REDUCE_PATH).join(merge_reduce_name(i));
 
             if let Some(file_path_str) = file_path.to_str() {
-                if output_tx.send(file_path_str.to_string()).is_err() {
+                if let Err(_) = output_tx.send(file_path_str.to_string()).await {
                     break;
                 }
             }

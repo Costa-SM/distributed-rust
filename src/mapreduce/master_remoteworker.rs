@@ -6,9 +6,9 @@ pub enum WorkerStatus {
 
 #[derive(Debug, Clone)]
 pub struct RemoteWorker {
-    pub id: usize,
-    pub hostname: String,
-    pub status: WorkerStatus,
+  pub id: usize,
+  pub hostname: String,
+  pub status: WorkerStatus,
 }
 
 impl RemoteWorker {

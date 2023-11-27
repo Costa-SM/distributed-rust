@@ -1,4 +1,9 @@
 use serde::{Serialize, Deserialize};
+use crate::common::Task;
+
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::num::Wrapping;
 
 // KeyValue is the type used to hold elements of maps and reduces results.
 #[derive(Clone, Serialize, Deserialize)]
@@ -59,6 +64,17 @@ pub fn reduce_func(inputs: &mut Vec<KeyValue>) -> &mut Vec<KeyValue> {
     }
 
     return inputs;
+}
+
+pub fn shuffle_func(task: &Task, key: String) -> i32 {
+    let mut hasher = DefaultHasher::new();
+    key.hash(&mut hasher);
+    let hash_value = hasher.finish();
+
+    let num_reduce_jobs = task.num_reduce_jobs as u64;
+    let reduce_job = Wrapping(hash_value) % Wrapping(num_reduce_jobs);
+
+    reduce_job.0 as i32
 }
 
 /* Main function for testing the Word Count algorithm. */

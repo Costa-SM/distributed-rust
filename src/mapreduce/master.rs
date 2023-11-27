@@ -1,6 +1,6 @@
 /* General Imports ****************************************************************************************************/
 use tonic::{transport::Server, Request, Response, Status};
-use tokio::sync::mpsc::{Sender, Receiver, channel};
+use tokio::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex};
 mod common;
 mod word_count;
@@ -18,6 +18,8 @@ pub mod common_rpc {
 
 /* Basic Definitions **************************************************************************************************/
 const IDLE_WORKER_BUFFER: usize = 100;
+const FAILED_WORKER_BUFFER: usize = 100;
+const RETRY_OPERATION_BUFFER: usize = 100;
 
 #[derive(Debug)]
 pub struct Master {
@@ -87,7 +89,7 @@ impl Master {
                   -> Master {
         let master = Master {
             // Task
-            task: Arc::new(Mutex::new(common::Task::new_task(word_count::map_func, word_count::reduce_func))),
+            task: Arc::new(Mutex::new(common::Task::new_task(word_count::map_func, word_count::shuffle_func, word_count::reduce_func))),
             
             // Network
             address,
@@ -129,39 +131,20 @@ impl Master {
     // }
   
     // handle_failing_workers will handle workers that fail during an operation.
-    // fn handle_failing_workers(&self, failed_worker_receiver: mpsc::Receiver<Arc<Mutex<RemoteWorker>>>) {
-    //     for failed_worker in failed_worker_receiver {
-    //         let mut workers = self.workers_mutex.lock().unwrap();
-    //         let id = failed_worker.lock().unwrap().id;
-    //         workers.remove(&id);
-    //         log::info!("Removing worker {} from master list.", id);
-    //     }
-    // }
-  
-    // // handle_retry_operations will handle retry operations.
-    // fn handle_retry_operations(&self, retry_operation_receiver: mpsc::Receiver<Operation>) {
-    //     // Implement your logic for handling retry operations here
-    //     // Use retry_operation_receiver as needed
-    //     // Example:
-    //     // for operation in retry_operation_receiver.iter() {
-    //     //     // Handle the retry operation
-    //     // }
-    // }
-  
-    // // Handle a single connection until it's done, then close it.
-    // fn handle_connection(
-    //     &self,
-    //     conn: TcpStream,
-    //     task: Arc<Task>,
-    //     workers_mutex: Arc<Mutex<HashMap<i32, Arc<Mutex<RemoteWorker>>>>>,
-    //     idle_worker_sender: mpsc::Sender<Arc<Mutex<RemoteWorker>>>,
-    //     failed_worker_sender: mpsc::Sender<Arc<Mutex<RemoteWorker>>>,
-    // ) {
-    //     // Implement your logic for handling a connection here
-    //     // Use task, workers_mutex, idle_worker_sender, failed_worker_sender as needed
-    //     // Example:
-    //     // let remote_worker = RemoteWorker::new(); // You may need to implement a new method for RemoteWorker
-    //     // self.idle_worker_chan.send(remote_worker).unwrap();
+    // fn handle_failing_workers(&self) {
+    //     let receiver = Arc::clone(&self.failed_worker_chan.1); // Wrap in Arc<Mutex<...>> for cloning
+    //     let workers_mutex = self.workers.clone();
+
+    //     let sync_code = task::spawn(async move {
+    //         while let Some(failed_worker) = receiver.recv().await {
+    //             let mut workers = workers_mutex.lock().unwrap();
+    //             workers.retain(|worker| worker.id != failed_worker.id);
+    //             println!("Removing worker {} from the master list.", failed_worker.id);
+    //         }
+    //     });
+
+    //     // You can choose to await the task if you want to wait for it to finish
+    //     tokio::runtime::Handle::current().block_on(sync_code).unwrap();
     // }
 }
 
