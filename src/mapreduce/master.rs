@@ -1,6 +1,6 @@
 /* General Imports ****************************************************************************************************/
 use tonic::{transport::Server, Request, Response, Status};
-use tokio::sync::mpsc::{self, Sender, Receiver};
+use tokio::sync::mpsc::{Sender, Receiver, channel};
 use std::sync::{Arc, Mutex};
 mod common;
 mod word_count;
@@ -30,15 +30,14 @@ pub struct Master {
     // rpc_server: rpc::Server,
     // listener: TcpListener,
 
+    // Sender Channels
+    idle_tx: Sender<master_remoteworker::RemoteWorker>,
+    failed_tx: Sender<master_remoteworker::RemoteWorker>,
+    retry_operation_tx: Sender<common::Operation>,
+
     // Workers handling
     workers: Mutex<Vec<master_remoteworker::RemoteWorker>>,
-    total_workers: i32, // Used to generate unique ids for new workers
-
-    idle_worker_chan:   (Sender<master_remoteworker::RemoteWorker>, Receiver<master_remoteworker::RemoteWorker>),
-    failed_worker_chan: (Sender<master_remoteworker::RemoteWorker>, Receiver<master_remoteworker::RemoteWorker>),
-
-    // Fault Tolerance
-    retry_operation_chan: (Sender<common::Operation>, Receiver<common::Operation>),
+    total_workers: Mutex<usize>, // Used to generate unique ids for new workers
 }
 
 /* Master RPCs ********************************************************************************************************/
@@ -48,20 +47,31 @@ impl Register for Master {
         &self,
         request: Request<RegisterArgs>,                         // Requests should have RegisterArgs type.
     ) -> Result<Response<RegisterReply>, Status> {              // Results should have RegisterReply type.
-        
         let args = request.into_inner();                        // Unpack request since its fields are private.
 
-        println!("Registering worker {} with hostname {}.", self.total_workers, args.worker_hostname); 
-        
-        // Get the mutex for the workers
-        let mut data = self.workers.lock().unwrap();
-        let new_worker = master_remoteworker::RemoteWorker::new_worker(self.total_workers, args.worker_hostname);
-        
-        data.push(new_worker);
+        // Get the mutex for the workers.
+        let mut workers = self.workers.lock().unwrap();
+        let mut worker_count = self.total_workers.lock().unwrap();
 
-        //@TODO: Finish implementation of register function.
+        println!("Registering worker {} with hostname {}.", *worker_count, args.worker_hostname); 
+
+        // Create the worker and push it into the worker list. Also increase the count.
+        let new_worker = master_remoteworker::RemoteWorker::new_worker(*worker_count, 
+                                                                                     args.worker_hostname);
+        let new_worker_clone = new_worker.clone();
+        (*workers).push(new_worker);
+        *worker_count += 1;
+
+        // Signal the idleWorker channel about the new worker.
+        let idle_tx = self.idle_tx.clone();
+        
+        tokio::spawn(async move {
+            idle_tx.send(new_worker_clone).await;
+        });
+
+        // Respond to caller with worker number and reduce jobs.
         Ok(Response::new(common_rpc::RegisterReply {
-            worker_id: {self.total_workers},
+            worker_id: {*worker_count - 1} as i32,
             reduce_jobs: {1},
         }))
     }
@@ -70,31 +80,31 @@ impl Register for Master {
 /* Master Implementation **********************************************************************************************/
 impl Master {
     // Construct a new Master struct
-    fn new_master(address: std::net::SocketAddr) -> Master {
+    fn new_master(address: std::net::SocketAddr, 
+                  idle_tx: Sender<master_remoteworker::RemoteWorker>,
+                  failed_tx: Sender<master_remoteworker::RemoteWorker>,
+                  retry_operation_tx: Sender<common::Operation>,) 
+                  -> Master {
         let master = Master {
             // Task
             task: Arc::new(Mutex::new(common::Task::new_task(word_count::map_func, word_count::reduce_func))),
             
             // Network
             address,
+
+            // Sender Channels
+            idle_tx,
+            failed_tx,
+            retry_operation_tx,
         
             // Workers handling
             workers: Mutex::new(Vec::new()),
-            total_workers: 0,
-            idle_worker_chan: mpsc::channel(1),
-            failed_worker_chan: mpsc::channel(1),
-
-            // Fault tolerance
-            retry_operation_chan: mpsc::channel(1),
+            total_workers: Mutex::new(0),
         };
   
         master
     }
 
-    fn increase_workers(&mut self) {
-        self.total_workers += 1;
-    }
-  
     // // accept_multiple_connections will handle the connections from multiple workers.
     // fn accept_multiple_connections(&self, idle_worker_receiver: mpsc::Receiver<Arc<Mutex<RemoteWorker>>>) {
     //     log::info!("Accepting connections on {}", self.listener.local_addr().unwrap());
@@ -157,13 +167,33 @@ impl Master {
 
 /* Master Main Function ***********************************************************************************************/
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() {
+    // Channels for idle and failed workers, as well as fault tolerance.
+    let (idle_worker_tx, 
+         mut idle_worker_rx) = channel(32);
+    let (fail_worker_tx, 
+         mut fail_worker_rx) = channel(32);
+    let (retry_operation_tx, 
+         mut retry_operation_rx) = channel(32);
+
+    // Listen to idle channel
+    tokio::spawn(async move {
+        while let Some(msg) = idle_worker_rx.recv().await {
+
+        }
+    });
+
+    // Listen to failed worker channel
+    tokio::spawn(async move {
+        while let Some(msg) = fail_worker_rx.recv().await {
+
+        }
+    });
+
     let address = "[::1]:8080".parse().unwrap();
-    let master = Master::new_master(address);
+    let master = Master::new_master(address, idle_worker_tx, fail_worker_tx, retry_operation_tx);
 
     Server::builder().add_service(RegisterServer::new(master))
     .serve(address)
-    .await?;
-
-    Ok(())
+    .await;
 }

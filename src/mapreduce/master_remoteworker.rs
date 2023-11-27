@@ -1,18 +1,18 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum WorkerStatus {
   Idle,
   Running,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RemoteWorker {
-  id: i32,
+  id: usize,
   hostname: String,
   status: WorkerStatus,
 }
 
 impl RemoteWorker {
-    pub fn new_worker(id: i32, hostname: String) -> RemoteWorker {
+    pub fn new_worker(id: usize, hostname: String) -> RemoteWorker {
         let worker = RemoteWorker {
             id,
             hostname,

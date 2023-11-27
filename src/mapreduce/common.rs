@@ -1,7 +1,6 @@
 use std::sync::mpsc::{Sender, Receiver, channel};
 use crate::word_count;
 
-
 // Task is the exposed struct of the Framework that the calling code should initialize
 // with the specific implementation of the operation.
 #[derive(Debug)]
