@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use crate::common::Task;
 
-use std::collections::hash_map::DefaultHasher;
+use std::collections::hash_map::{HashMap, DefaultHasher};
 use std::hash::{Hash, Hasher};
 use std::num::Wrapping;
 
@@ -21,7 +21,7 @@ pub fn map_func(buffer: &[u8]) -> Vec<KeyValue> {
     };
 
     // Make all characters lowercase, and remove the punctuation. Then, separate words by whitespace.
-    let words = words.to_ascii_lowercase().replace(&['(', ')', ',', '\"', '.', ';', ':', '\''][..], "");
+    let words = words.to_ascii_lowercase().replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '`', '-'][..], "");
     let split = words.split_ascii_whitespace();
     
     // Create a vector to store the words.
@@ -35,32 +35,20 @@ pub fn map_func(buffer: &[u8]) -> Vec<KeyValue> {
 }
 
 pub fn reduce_func(inputs: &mut Vec<KeyValue>) -> &mut Vec<KeyValue> {
-    // Find repeated words and their indices, to remove them from the key/value pairs.
-    // Use the KeyValue struct as an indicator of the word and the position.
-    let mut removed_words: Vec<KeyValue> = Vec::new();
-
-    for (iter, item) in inputs.iter().enumerate() {
-        let indices = inputs
-                                        .iter()
-                                        .enumerate()
-                                        .filter(|(i, k)| k.key == item.key && i > &iter)
-                                        .map(|(index, _)| index)
-                                        .collect::<Vec<_>>();
-        
-        for index in indices {
-            removed_words.push(KeyValue {key: item.key.clone(), value: index as i32});
-        }
+    // Hash map for counting number of times each word appears. It would be 
+    // best to use the hash map from the beginning, but then the map and reduce 
+    // functions would be done at the same time.
+    let mut element_count = HashMap::new();
+    for element in inputs.clone() {
+        *element_count.entry(element.key).or_insert(0) += 1;
     }
 
-    // Sort the indices so that when they are removed from the vector, they are not shifted around.
-    removed_words.sort_unstable_by(|a, b| b.value.cmp(&a.value));
+    // Clear vector.
+    inputs.clear();
 
-    // Remove repeated words from the vector.
-    for word in removed_words {
-        let index = inputs.iter().position(|w| w.key == word.key).unwrap();
-
-        inputs[index].value += 1;
-        inputs.remove(word.value as usize);
+    // Update values in the vector
+    for (element, count) in &element_count {
+        inputs.push(KeyValue { key: (element.to_string()), value: (*count) });
     }
 
     return inputs;
@@ -79,8 +67,13 @@ pub fn shuffle_func(task: &Task, key: String) -> i32 {
 
 /* Main function for testing the Word Count algorithm. */
 fn main() {
-    let test_string: &str = "hello, this is a TeSt tEst. stRIng; with soME: repeated. words words";
-    let mut dict = map_func(test_string.as_bytes());
+    let args: Vec<_> = std::env::args().collect();
+
+    let path: &str = args[1].as_str();
+    let read_string = std::fs::read_to_string(path).unwrap();
+
+
+    let mut dict = map_func(read_string.as_bytes());
 
     let reduced_dict = reduce_func(&mut dict);
     
