@@ -1,6 +1,7 @@
 mod common;
 
-use common::{Task, KeyValue};
+use word_count::KeyValue;
+use common::Task;
 use std::fs::{self, File};
 use std::io::{self, BufReader, Write};
 use std::path;

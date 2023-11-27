@@ -2,8 +2,9 @@
 use tonic::{transport::Server, Request, Response, Status};
 use tokio::sync::mpsc::{self, Sender, Receiver};
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 mod common;
+mod word_count;
+mod master_remoteworker;
 
 /* Tonic RPC generated stubs ******************************************************************************************/
 use common_rpc::register_server::{Register, RegisterServer};    // Master is the server in the register service.
@@ -21,7 +22,7 @@ const IDLE_WORKER_BUFFER: usize = 100;
 #[derive(Debug)]
 pub struct Master {
     // Task
-    // task: Arc<Mutex<common::Task>>,
+    task: Arc<Mutex<common::Task>>,
 
     // Network
     address: std::net::SocketAddr,
@@ -30,11 +31,11 @@ pub struct Master {
     // listener: TcpListener,
 
     // Workers handling
-    // workers_mutex: Mutex<HashMap<i32, Arc<Mutex<RemoteWorker>>>>,
+    workers: Mutex<Vec<master_remoteworker::RemoteWorker>>,
     total_workers: i32, // Used to generate unique ids for new workers
 
-    // idle_worker_chan: (Sender<Arc<Mutex<RemoteWorker>>>, Receiver<Arc<Mutex<RemoteWorker>>>),
-    // failed_worker_chan: (Sender<Arc<Mutex<RemoteWorker>>>, Receiver<Arc<Mutex<RemoteWorker>>>),
+    idle_worker_chan:   (Sender<master_remoteworker::RemoteWorker>, Receiver<master_remoteworker::RemoteWorker>),
+    failed_worker_chan: (Sender<master_remoteworker::RemoteWorker>, Receiver<master_remoteworker::RemoteWorker>),
 
     // Fault Tolerance
     retry_operation_chan: (Sender<common::Operation>, Receiver<common::Operation>),
@@ -52,6 +53,12 @@ impl Register for Master {
 
         println!("Registering worker {} with hostname {}.", self.total_workers, args.worker_hostname); 
         
+        // Get the mutex for the workers
+        let mut data = self.workers.lock().unwrap();
+        let new_worker = master_remoteworker::RemoteWorker::new_worker(self.total_workers, args.worker_hostname);
+        
+        data.push(new_worker);
+
         //@TODO: Finish implementation of register function.
         Ok(Response::new(common_rpc::RegisterReply {
             worker_id: {self.total_workers},
@@ -65,14 +72,27 @@ impl Master {
     // Construct a new Master struct
     fn new_master(address: std::net::SocketAddr) -> Master {
         let master = Master {
+            // Task
+            task: Arc::new(Mutex::new(common::Task::new_task(word_count::map_func, word_count::reduce_func))),
+            
+            // Network
             address,
+        
+            // Workers handling
+            workers: Mutex::new(Vec::new()),
             total_workers: 0,
-            // idle_worker_chan: mpsc::channel(),
-            // failed_worker_chan: mpsc::channel(),
+            idle_worker_chan: mpsc::channel(1),
+            failed_worker_chan: mpsc::channel(1),
+
+            // Fault tolerance
             retry_operation_chan: mpsc::channel(1),
         };
   
         master
+    }
+
+    fn increase_workers(&mut self) {
+        self.total_workers += 1;
     }
   
     // // accept_multiple_connections will handle the connections from multiple workers.

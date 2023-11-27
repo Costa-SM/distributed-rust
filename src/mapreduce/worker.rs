@@ -4,6 +4,7 @@ use tonic::{transport::Server, Request, Response, Status};
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::{Arc, Mutex};
 mod common;
+mod word_count;
 
 /* Tonic RPC generated stubs ******************************************************************************************/
 use common_rpc::register_client::RegisterClient;              // Worker is the client in the register service.
@@ -67,12 +68,12 @@ impl Runner for Worker {
 
 /* Worker Implementation **********************************************************************************************/
 impl Worker {
-    pub fn new_worker(id: i32, hostname: String, master_hostname: String) -> Worker {
+    fn new_worker(id: i32, hostname: String, master_hostname: String) -> Worker {
         let worker = Worker {
             id,
             hostname,
             master_hostname,
-            task: Arc::new(Mutex::new(common::Task::new_task())),
+            task: Arc::new(Mutex::new(common::Task::new_task(word_count::map_func, word_count::reduce_func))),
             done: false,
         };
     

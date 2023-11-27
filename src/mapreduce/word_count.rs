@@ -1,4 +1,7 @@
-#[derive(Clone)]
+use serde::{Serialize, Deserialize};
+
+// KeyValue is the type used to hold elements of maps and reduces results.
+#[derive(Clone, Serialize, Deserialize)]
 pub struct KeyValue {
     pub key: String,
     pub value: i32
