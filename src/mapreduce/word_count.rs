@@ -1,19 +1,14 @@
-use serde::{Serialize, Deserialize};
-use crate::common::Task;
+use crate::common::{Task, KeyValue};
 
 use std::collections::hash_map::{HashMap, DefaultHasher};
 use std::hash::{Hash, Hasher};
 use std::num::Wrapping;
 
 // KeyValue is the type used to hold elements of maps and reduces results.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct KeyValue {
-    pub key: String,
-    pub value: String,
-}
+
 
 // This function receives a string obtained from the split files.
-pub fn map_func(buffer: &[u8]) -> Vec<KeyValue> {
+pub fn map_func(buffer: &Vec<u8>) -> Vec<KeyValue> {
     // This considers UTF-8 encoding.
     let words = match std::str::from_utf8(buffer) {
         Ok(v) => v,
@@ -73,7 +68,7 @@ fn main() {
     let read_string = std::fs::read_to_string(path).unwrap();
 
 
-    let mut dict = map_func(read_string.as_bytes());
+    let mut dict = map_func(&read_string.as_bytes().to_vec());
 
     let reduced_dict = reduce_func(&mut dict);
     

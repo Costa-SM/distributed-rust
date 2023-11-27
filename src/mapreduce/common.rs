@@ -1,5 +1,18 @@
+use std::sync::{Arc, Mutex};
+use serde::{Serialize, Deserialize};
 use tokio::sync::mpsc::{self, Sender, Receiver};
-use crate::word_count::KeyValue;
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct KeyValue {
+    pub key: String,
+    pub value: String,
+}
+
+pub struct Operation {
+    pub proc: String,
+    pub file_path: String,
+    pub id: i32,
+}
 
 // Task is the exposed struct of the Framework that the calling code should initialize
 // with the specific implementation of the operation.
@@ -48,12 +61,6 @@ impl Task {
     }
 }
 
-pub struct Operation {
-    proc: String,
-    file_path: String,
-    id: i32,
-}
-
-type MapFunc = fn(&[u8]) -> Vec<KeyValue>;
+type MapFunc = fn(&Vec<u8>) -> Vec<KeyValue>;
 type ReduceFunc = fn(&mut Vec<KeyValue>) -> &mut Vec<KeyValue>;
 type ShuffleFunc = fn(&Task, String) -> i32;

@@ -1,6 +1,5 @@
 /* General Imports ****************************************************************************************************/
 use tonic::{transport::Server, Request, Response, Status};
-use word_count::KeyValue;
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::{Arc, Mutex};
 mod common;
@@ -45,7 +44,7 @@ impl Runner for Worker {
         let read_string = std::fs::read_to_string(args.file_path.clone());
         match read_string {
             Ok(read_string) => {
-                let map_result = (self.task.map)(read_string.as_bytes());
+                let map_result = (self.task.map)(&read_string.as_bytes().to_vec());
 
                 // Store the result locally.
                 let local_store = data::store_local(&self.task, args.id, &map_result);
