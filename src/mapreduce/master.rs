@@ -170,23 +170,24 @@ impl Master {
 async fn main() {
     // Channels for idle and failed workers, as well as fault tolerance.
     let (idle_worker_tx, 
-         mut idle_worker_rx) = channel(32);
+         mut idle_worker_rx) = channel::<master_remoteworker::RemoteWorker>(32);
     let (fail_worker_tx, 
-         mut fail_worker_rx) = channel(32);
+         mut fail_worker_rx) = channel::<master_remoteworker::RemoteWorker>(32);
     let (retry_operation_tx, 
          mut retry_operation_rx) = channel(32);
 
     // Listen to idle channel
     tokio::spawn(async move {
         while let Some(msg) = idle_worker_rx.recv().await {
-
+            println!("New worker registered!");
+            println!("ID: {}, Hostname: {}", msg.id, msg.hostname);
         }
     });
 
     // Listen to failed worker channel
     tokio::spawn(async move {
         while let Some(msg) = fail_worker_rx.recv().await {
-
+            
         }
     });
 
