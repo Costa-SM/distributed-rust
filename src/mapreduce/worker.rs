@@ -5,6 +5,7 @@ use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::{Arc, Mutex};
 mod common;
 mod word_count;
+mod data;
 
 /* Tonic RPC generated stubs ******************************************************************************************/
 use common_rpc::register_client::RegisterClient;              // Worker is the client in the register service.
@@ -26,7 +27,7 @@ pub struct Worker {
     master_hostname: String,
 
     // Operation
-    task: Arc<Mutex<common::Task>>,
+    task: common::Task,
     done: bool,
 }
 
@@ -37,8 +38,21 @@ impl Runner for Worker {
         &self,
         request: Request<RunArgs>,
     ) -> Result<Response<EmptyMessage>, Status> {
+        let args = request.into_inner();
+        println!("Running map ID: {}, Path: {}", args.id, args.file_path.clone());
 
-        //@TODO: Finish implementation.
+        // Open, read file and perform map.
+        let read_string = std::fs::read_to_string(args.file_path.clone()).unwrap();
+        let map_result = (self.task.map)(read_string.as_bytes());
+
+        // Store the result locally.
+        data::store_local(&self.task, self.id, map_result.clone());
+
+        for pair in map_result {
+            println!("{}: {}", pair.key, pair.value);
+        }
+
+        println!("Finished map ID: {}, Path: {}", args.id, args.file_path.clone());
         Ok(Response::new(common_rpc::EmptyMessage {
         }))
     }
@@ -70,7 +84,7 @@ impl Worker {
             id,
             hostname,
             master_hostname,
-            task: Arc::new(Mutex::new(common::Task::new_task(word_count::map_func, word_count::shuffle_func, word_count::reduce_func))),
+            task: common::Task::new_task(word_count::map_func, word_count::shuffle_func, word_count::reduce_func),
             done: false,
         };
     
@@ -90,6 +104,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     let response = reg_client.register(request).await?.into_inner();
     println!("Registered with ID {} and ReduceJobs {}.", response.worker_id, response.reduce_jobs);
+
+    let address = "[::1]:8081".parse().unwrap();
+    let worker = Worker::new_worker(0, "HostA".to_string(), "MasterA".to_string());
+    
+    Server::builder().add_service(RunnerServer::new(worker))
+    .serve(address)
+    .await;
 
     Ok(())
 }

@@ -163,6 +163,16 @@ async fn main() {
         while let Some(msg) = idle_worker_rx.recv().await {
             println!("New worker registered!");
             println!("ID: {}, Hostname: {}", msg.id, msg.hostname);
+
+            std::thread::sleep(std::time::Duration::from_secs(1));
+
+            let mut run_client = RunnerClient::connect("http://[::1]:8081").await.unwrap();
+            let request = tonic::Request::new(RunArgs{
+                id: {0},
+                file_path: {"./src/data/alice.txt".to_string()},
+            });
+
+            let response = run_client.run_map(request).await.unwrap();
         }
     });
 

@@ -1,15 +1,13 @@
-mod common;
-
-use common::Task;
 use std::fs::{self, File};
 use std::io::{self, BufReader, Write};
 use std::path;
 use std::thread::sleep;
 use std::time::Duration;
 use tokio::sync::mpsc::{self, Sender, Receiver};
-use word_count::KeyValue;
 
 use serde_json;
+
+use crate::{common, word_count};
 
 const REDUCE_PATH: &str = "reduce";
 const RESULT_PATH: &str = "result";
@@ -30,12 +28,12 @@ pub fn reduce_name(id_map: i32, id_reduce: i32) -> String {
 // Store result from map operation locally.
 // This will store the result from all the map calls.
 // NOTE: TESTED
-pub fn store_local(task: &Task, id_map_task: i32, data: Vec<KeyValue>) -> io::Result<()> {
+pub fn store_local(task: &common::Task, id_map_task: i32, data: Vec<word_count::KeyValue>) -> io::Result<()> {
     for r in 0..task.num_reduce_jobs {
         let file_path = path::Path::new(REDUCE_PATH).join(reduce_name(id_map_task, r));
         let mut file = File::create(&file_path).expect("Error creating file");
         
-        for kv in data {
+        for kv in data.clone() {
             if (task.shuffle)(task, kv.key.clone()) == r {
                 let json = serde_json::to_string(&kv)?;
                 file.write_all(json.as_bytes())?;
@@ -49,7 +47,7 @@ pub fn store_local(task: &Task, id_map_task: i32, data: Vec<KeyValue>) -> io::Re
 
 // Merge the result from all the map operations by reduce job id.
 // NOTE: TESTED
-pub fn merge_map_local(task: &Task, map_counter: i32) -> io::Result<()> {
+pub fn merge_map_local(task: &common::Task, map_counter: i32) -> io::Result<()> {
     for r in 0..task.num_reduce_jobs {
         let merged_file_path = path::Path::new(REDUCE_PATH).join(merge_reduce_name(r));
         let mut merged_file = File::create(merged_file_path)?;
@@ -113,14 +111,14 @@ pub fn merge_reduce_local(reduce_counter: i32) -> io::Result<()> {
 
 // Load data for reduce jobs.
 // NOTE: TESTED
-pub fn load_local(id_reduce: i32) -> io::Result<Vec<KeyValue>> {
+pub fn load_local(id_reduce: i32) -> io::Result<Vec<word_count::KeyValue>> {
     let file_path = path::Path::new(REDUCE_PATH).join(merge_reduce_name(id_reduce));
 
     let file = File::open(&file_path)?;
     let reader = BufReader::new(file);
 
     let mut data = Vec::new();
-    for result in serde_json::Deserializer::from_reader(reader).into_iter::<KeyValue>() {
+    for result in serde_json::Deserializer::from_reader(reader).into_iter::<word_count::KeyValue>() {
         let kv = result?;
         data.push(kv);
     }
@@ -150,26 +148,26 @@ pub fn remove_contents(dir: &str) -> io::Result<()> {
 // FanIn is a pattern that will return a channel in which the goroutines generated here will keep
 // writing until the loop is done.
 // This is used to generate the name of all the reduce files.
-pub fn fan_reduce_file_path(num_reduce_jobs: i32) -> (Sender<String>, Receiver<String>) {
-    let (output_tx, output_rx) = mpsc::channel(1);
+// pub fn fan_reduce_file_path(num_reduce_jobs: i32) -> (Sender<String>, Receiver<String>) {
+//     let (output_tx, output_rx) = mpsc::channel(1);
 
-    tokio::spawn(async move {
-        for i in 0..num_reduce_jobs {
-            let file_path = path::Path::new(REDUCE_PATH).join(merge_reduce_name(i));
+//     tokio::spawn(async move {
+//         for i in 0..num_reduce_jobs {
+//             let file_path = path::Path::new(REDUCE_PATH).join(merge_reduce_name(i));
 
-            if let Some(file_path_str) = file_path.to_str() {
-                if let Err(_) = output_tx.send(file_path_str.to_string()).await {
-                    break;
-                }
-            }
-        }
+//             if let Some(file_path_str) = file_path.to_str() {
+//                 if let Err(_) = output_tx.send(file_path_str.to_string()).await {
+//                     break;
+//                 }
+//             }
+//         }
         
-        drop(output_tx); 
-        drop(output_rx);
-    });
+//         drop(output_tx); 
+//         drop(output_rx);
+//     });
 
-    (output_tx, output_rx)
-}
+//     (output_tx, output_rx)
+// }
 
 // Support function to generate the name of result files.
 // NOTE: TESTED
