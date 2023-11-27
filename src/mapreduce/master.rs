@@ -172,7 +172,13 @@ async fn main() {
                 file_path: {"./src/data/alice.txt".to_string()},
             });
 
-            let response = run_client.run_map(request).await.unwrap();
+            run_client.run_map(request).await;
+
+            let request = tonic::Request::new(RunArgs{
+                id: {0},
+                file_path: {"./src/data/alice.txt".to_string()},
+            });
+            run_client.run_reduce(request).await;
         }
     });
 
