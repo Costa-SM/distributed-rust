@@ -18,7 +18,7 @@ use std::time::Duration;
 // it and just pass a reference to reduce jobs so they can go grab it.
 pub async fn run_sequential(task: &mut Task) {
     let mut map_counter = 0;
-    let mut map_result: Vec<KeyValue> = Vec::new();
+    let mut map_result;
 
     println!("Running RunSequential...");
 

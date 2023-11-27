@@ -1,13 +1,15 @@
 use std::fs::{self, File};
 use std::io::{self, BufReader, Read, Write};
 use std::path;
+use tokio::sync::Mutex;
 use std::thread::sleep;
 use std::time::Duration;
 
-use serde_json;
 use tokio::sync::mpsc::{self, Sender, Receiver};
+use serde_json;
+use text_splitter;
 
-use crate::common;
+use crate::common::{self, KeyValue};
 
 pub const MAP_PATH: &str = "map";
 pub const REDUCE_PATH: &str = "reduce";
@@ -173,28 +175,48 @@ pub fn fan_reduce_file_path(num_reduce_jobs: i32) -> Receiver<String> {
 }
 
 // Reads input file and split it into files smaller than chunkSize.
-fn split_data(filename: &str, chunk_size: usize) -> io::Result<usize> {
-    // Read the content of the input file
-    let mut input_file = File::open(filename)?;
-    let mut data = Vec::new();
-    input_file.read_to_end(&mut data)?;
+fn split_data(file_name: &str, chunk_size: usize) -> usize {
+    let mut file = match File::open(file_name) {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("Error opening file {}: {}", file_name, e);
+            return 0;
+        }
+    };
 
-    // Calculate the number of chunks
-    let num_map_files = (data.len() + chunk_size - 1) / chunk_size;
-
-    // Create and write chunks to separate files
-    for i in 0..num_map_files {
-        let start = i * chunk_size;
-        let end = (i + 1) * chunk_size;
-        let chunk = &data[start..end];
-
-        // Create a new file for each chunk
-        let output_filename = format!("{}_chunk_{}.txt", filename, i + 1);
-        let mut output_file = File::create(output_filename)?;
-        output_file.write_all(chunk)?;
+    // Read the file content into a String
+    let mut file_content = String::new();
+    if let Err(e) = file.read_to_string(&mut file_content) {
+        eprintln!("Error reading file {}: {}", file_name, e);
+        return 0;
     }
 
-    Ok(num_map_files)
+    file_content = file_content.to_ascii_lowercase().replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '`', '-'][..], "");
+    file_content = file_content.to_ascii_lowercase().replace('\n', " ");
+
+    let splitter = text_splitter::TextSplitter::default().with_trim_chunks(false);
+    let chunks = splitter.chunks(file_content.as_str(), chunk_size);
+
+    let mut num_chunks = 0;
+    for (i, chunk) in chunks.enumerate() {
+        let output_file_name = format!("test-{}.txt", i);
+        let mut output_file = match File::create(&output_file_name) {
+            Ok(file) => file,
+            Err(e) => {
+                eprintln!("Error creating file {}: {}", output_file_name, e);
+                return num_chunks;
+            }
+        };
+
+        if let Err(e) = write!(&mut output_file, "{}", chunk) {
+            eprintln!("Error writing to file {}: {}", output_file_name, e);
+            return num_chunks;
+        }
+
+        num_chunks += 1;
+    }
+
+    num_chunks
 }
 
 // Support function to generate the name of map files.
@@ -267,19 +289,42 @@ pub fn fan_in_data(num_files: i32) -> Receiver<Vec<u8>> {
 // fanOutData will run a goroutine that receive data on the one-way channel and will
 // proceed to store it in their final destination. The data will come out after the
 // reduce phase of the mapreduce model.
-pub fn fun_out_data() -> (Sender<Vec<u8>>, Receiver<bool>) {
-    let (output_tx, output_rx) = mpsc::channel(REDUCE_BUFFER_SIZE);
-    let (done_tx, done_rx) = mpsc::channel(REDUCE_BUFFER_SIZE);
+pub fn fun_out_data() -> (Sender<Vec<KeyValue>>, Receiver<bool>) {
+    let (output_tx, output_rx) = mpsc::channel::<Vec<KeyValue>>(REDUCE_BUFFER_SIZE);
+    let (done_tx, done_rx) = mpsc::channel(1);
+    let mut reduce_counter = 0;
+
+    let output_rx = Mutex::new(output_rx);
 
     tokio::spawn(async move {
-        while let Some(data) = output_rx.recv().await {
-            let file_path = result_file_name(0);
+        while let Some(data) = (*output_rx.lock().await).recv().await {
+            let file_path = result_file_name(reduce_counter);
             let mut file = File::create(&file_path).expect("Error creating file");
 
-            file.write_all(&data).expect("Error writing to file");
+            for kv in data {
+                let json = match serde_json::to_string(&kv) {
+                    Ok(json) => json,
+                    Err(err) => {
+                        eprintln!("Error serializing data: {}", err);
+                        continue;
+                    }
+                };
+                match file.write_all(json.as_bytes()) {
+                    Ok(_) => (),
+                    Err(err) => eprintln!("Error writing to file: {}", err),
+                }
+                match file.write_all(b"\n") {
+                    Ok(_) => (),
+                    Err(err) => eprintln!("Error writing to file: {}", err),
+                }
+            }
+
+            reduce_counter += 1;
         }
 
-        drop(output_tx);
+        if let Err(err) = done_tx.send(true).await {
+            eprintln!("Error sending to channel 'done': {}", err);
+        }
     });
 
     (output_tx, done_rx)

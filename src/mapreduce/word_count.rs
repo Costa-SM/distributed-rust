@@ -59,20 +59,3 @@ pub fn shuffle_func(task: &Task, key: String) -> i32 {
 
     reduce_job.0 as i32
 }
-
-/* Main function for testing the Word Count algorithm. */
-fn main() {
-    let args: Vec<_> = std::env::args().collect();
-
-    let path: &str = args[1].as_str();
-    let read_string = std::fs::read_to_string(path).unwrap();
-
-
-    let mut dict = map_func(&read_string.as_bytes().to_vec());
-
-    let reduced_dict = reduce_func(&mut dict);
-    
-    for item in reduced_dict.clone() {
-        println!("Word/Value: {} / {}", item.key, item.value);
-    }
-}
