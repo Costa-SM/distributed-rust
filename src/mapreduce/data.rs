@@ -191,7 +191,7 @@ pub fn split_data(file_name: &str, chunk_size: usize) -> usize {
         return 0;
     }
 
-    file_content = file_content.to_ascii_lowercase().replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '`', '-'][..], "");
+    file_content = file_content.to_ascii_lowercase().replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '`', '-', '?', '_', '!'][..], " ");
     file_content = file_content.to_ascii_lowercase().replace('\n', " ");
 
     let splitter = text_splitter::TextSplitter::default().with_trim_chunks(false);
@@ -262,6 +262,7 @@ pub fn fan_in_file_path(num_files: i32) -> Receiver<String> {
 // the mapreduce framework through the one-way channel. It'll buffer data up to
 // MAP_BUFFER_SIZE (files smaller than chunkSize) and resume loading them
 // after they are read on the other side of the channle (in the mapreduce package)
+// NOTE: TESTED
 pub fn fan_in_data(num_files: i32) -> Receiver<Vec<u8>> {
     let (output_tx, output_rx) = mpsc::channel(MAP_BUFFER_SIZE);
 

@@ -1,8 +1,8 @@
-mod data;
 mod common;
-mod word_count;
+mod data;
 mod mapreduce;
 mod master;
+mod word_count;
 mod worker;
 
 use tokio::runtime;
@@ -155,9 +155,8 @@ fn main() {
                 let (fan_out, mut wait_for_it) = data::fan_out_data();
 
                 task.input_chan = fan_in;
-                task.output_chan = fan_out;
 
-                mapreduce::run_sequential(&mut task).await;
+                mapreduce::run_sequential(&mut task, fan_out).await;
 
                 // Wait for the output channel to close
                 wait_for_it.recv().await.unwrap();

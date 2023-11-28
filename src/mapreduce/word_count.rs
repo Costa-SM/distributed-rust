@@ -15,8 +15,7 @@ pub fn map_func(buffer: &Vec<u8>) -> Vec<KeyValue> {
         Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
     };
 
-    // Make all characters lowercase, and remove the punctuation. Then, separate words by whitespace.
-    let words = words.to_ascii_lowercase().replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '`', '-'][..], "");
+    // Separate words by whitespace.
     let split = words.split_ascii_whitespace();
     
     // Create a vector to store the words.

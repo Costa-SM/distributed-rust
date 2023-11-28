@@ -28,7 +28,6 @@ pub struct Task {
 
     // Channels for data
     pub input_chan: Receiver<Vec<u8>>,
-    pub output_chan: Sender<Vec<KeyValue>>,
 
     // Channels for file paths
     pub input_file_path_chan: Receiver<String>,
@@ -49,7 +48,6 @@ impl Task {
             
             // Channels for data
             input_chan: mpsc::channel(1).1,
-            output_chan: mpsc::channel(1).0,
 
             // Channels for file paths
             input_file_path_chan: mpsc::channel(1).1,

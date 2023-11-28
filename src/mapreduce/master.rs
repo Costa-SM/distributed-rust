@@ -196,6 +196,3 @@
 //     .serve(address)
 //     .await;
 // }
-fn main() {
-    println!("Hello, world!");
-}
