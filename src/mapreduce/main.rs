@@ -1,9 +1,7 @@
 mod common;
 mod data;
 mod mapreduce;
-mod master;
 mod word_count;
-mod worker;
 
 use tokio::runtime;
 use clap::{App, Arg};

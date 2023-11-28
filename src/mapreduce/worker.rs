@@ -1,9 +1,10 @@
 /* General Imports ****************************************************************************************************/
 use tonic::{transport::Server, Request, Response, Status};
 use std::sync::mpsc::{self, Sender, Receiver};
-use std::sync::{Arc, Mutex};
 
-use crate::common;
+mod common;
+mod data;
+mod word_count;
 
 /* Tonic RPC generated stubs ******************************************************************************************/
 use common_rpc::register_client::RegisterClient;              // Worker is the client in the register service.
@@ -155,13 +156,15 @@ impl Worker {
                     }
         
                     Err(_) => {
-                        panic!("Registration with master failed !")
+                        println!("Registration with master failed !");
+                        std::process::exit(1);
                     }
                 }
             }
 
             Err(_) => {
-                panic!("Connection with master has been refused !\nAddress used was: {}", self.master_hostname);
+                println!("Connection with master has been refused !\nAddress used was: {}", self.master_hostname);
+                std::process::exit(1);
             }
         }
     }

@@ -30,7 +30,7 @@ pub struct Task {
     pub input_chan: Receiver<Vec<u8>>,
 
     // Channels for file paths
-    pub input_file_path_chan: Receiver<String>,
+    pub input_file_path_chan: Receiver<Vec<u8>>,
     pub output_file_path_chan: Sender<String>,
 }
 
