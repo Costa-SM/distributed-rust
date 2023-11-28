@@ -90,6 +90,11 @@ impl Runner for Worker {
         match file_opening {
             Ok(ref mut map_result) => {
                 let reduce_result = (self.task.reduce)(map_result);
+
+                for kv in reduce_result {
+                    println!("{}: {}", kv.key, kv.value);
+                }
+
                 println!("Finished reduce ID: {}, Path: {}", args.id, args.file_path.clone());
             }
 
@@ -99,8 +104,10 @@ impl Runner for Worker {
             }
         }
         
+        std::process::exit(0);
         Ok(Response::new(common_rpc::EmptyMessage {
         }))
+
     }
 
     async fn done(
