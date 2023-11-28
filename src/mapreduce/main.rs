@@ -129,7 +129,7 @@ fn main() {
         .parse::<i32>()
         .unwrap(); // Parse to i32
 
-    let _ = fs::create_dir(data::REDUCE_PATH);
+    let _ = fs::create_dir(data::MAP_PATH);
     let _ = fs::create_dir(data::RESULT_PATH);
 
     let mut task = common::Task::new_task(word_count::map_func, word_count::shuffle_func, word_count::reduce_func);
@@ -152,13 +152,13 @@ fn main() {
                 let num_files = data::split_data(file, chunk_size);
 
                 let fan_in = data::fan_in_data(num_files as i32);
-                let (fan_out, wait_for_it) = data::fan_out_data();
+                let (fan_out, mut wait_for_it) = data::fan_out_data();
 
                 task.input_chan = fan_in;
                 task.output_chan = fan_out;
 
-                mapreduce::run_sequential(&mut task);
-                
+                mapreduce::run_sequential(&mut task).await;
+
                 // Wait for the output channel to close
                 wait_for_it.recv().await.unwrap();
             });
@@ -186,7 +186,7 @@ fn main() {
                 let fan_in = data::fan_in_file_path(num_files as i32);
                 task.input_file_path_chan = fan_in;
 
-                mapreduce::run_master(&task, hostname);
+                // mapreduce::run_master(&task, hostname);
             }
             "worker" => {
                 println!("Node type: {}", node_type);
@@ -200,10 +200,12 @@ fn main() {
                 }
 
                 let hostname = format!("{}:{}", addr, port);
-                mapreduce::run_worker(&task, hostname, master, n_ops);
+                // mapreduce::run_worker(&task, hostname, master, n_ops);
             }
             _ => println!("Invalid node type: {}", node_type),
         },
         _ => println!("Invalid mode: {}", mode),
     }
+
+
 }

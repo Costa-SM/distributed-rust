@@ -199,18 +199,18 @@ pub fn split_data(file_name: &str, chunk_size: usize) -> usize {
 
     let mut num_chunks = 0;
     for (i, chunk) in chunks.enumerate() {
-        let output_file_name = format!("test-{}.txt", i);
+        let output_file_name = map_file_name(i as i32);
         let mut output_file = match File::create(&output_file_name) {
             Ok(file) => file,
             Err(e) => {
-                eprintln!("Error creating file {}: {}", output_file_name, e);
-                return num_chunks;
+                println!("Error creating file: {}", e);
+                std::process::exit(1);
             }
         };
 
         if let Err(e) = write!(&mut output_file, "{}", chunk) {
-            eprintln!("Error writing to file {}: {}", output_file_name, e);
-            return num_chunks;
+            println!("Error writing to file {}", e);
+            std::process::exit(1);
         }
 
         num_chunks += 1;
@@ -305,17 +305,23 @@ pub fn fan_out_data() -> (Sender<Vec<KeyValue>>, Receiver<bool>) {
                 let json = match serde_json::to_string(&kv) {
                     Ok(json) => json,
                     Err(err) => {
-                        eprintln!("Error serializing data: {}", err);
-                        continue;
+                        println!("Error serializing data: {}", err);
+                        std::process::exit(1);
                     }
                 };
                 match file.write_all(json.as_bytes()) {
                     Ok(_) => (),
-                    Err(err) => eprintln!("Error writing to file: {}", err),
+                    Err(err) => {
+                        println!("Error writing to file: {}", err);
+                        std::process::exit(1);
+                    }
                 }
                 match file.write_all(b"\n") {
                     Ok(_) => (),
-                    Err(err) => eprintln!("Error writing to file: {}", err),
+                    Err(err) => {
+                        println!("Error writing to file: {}", err);
+                        std::process::exit(1);
+                    },
                 }
             }
 
@@ -323,7 +329,8 @@ pub fn fan_out_data() -> (Sender<Vec<KeyValue>>, Receiver<bool>) {
         }
 
         if let Err(err) = done_tx.send(true).await {
-            eprintln!("Error sending to channel 'done': {}", err);
+            println!("Error sending to channel 'done': {}", err);
+            std::process::exit(1);
         }
     });
 
