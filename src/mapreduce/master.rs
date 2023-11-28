@@ -152,12 +152,14 @@ impl Register for Master {
         request: Request<RegisterArgs>,                         // Requests should have RegisterArgs type.
     ) -> Result<Response<RegisterReply>, Status> {              // Results should have RegisterReply type.
         let args = request.into_inner();                        // Unpack request since its fields are private.
+        
+        println!("Registering worker.");
 
         // Get the mutex for the workers.
         let mut workers = self.workers.lock().unwrap();
         let mut worker_count = self.total_workers.lock().unwrap();
-
-        println!("Registering worker {} with hostname {}.", *worker_count, args.worker_hostname); 
+        println!("{} hostname {}.", *worker_count, args.worker_hostname); 
+        
 
         // Create the worker and push it into the worker list. Also increase the count.
         let new_worker = master_remoteworker::RemoteWorker::new_worker(*worker_count, 
@@ -211,11 +213,6 @@ impl Master {
         };
   
         master
-    }
-
-    fn schedule_maps(&self, file_path: String) {
-        println!("Scheduling map operations");
-
     }
 }
 
@@ -363,25 +360,43 @@ async fn main() {
     let mut counter = 0;
     while let Some(msg) = fan_in.recv().await {
         let operation = Operation {proc: {"map".to_string()}, file_path: {file.to_string()}, id: {counter}};
-        counter += 1;
-
+        
         let worker = idle_worker_rx.recv().await.unwrap();
         let args = RunArgs { id: (counter), file_path: (file.to_string()) };
+        
+        call_map(counter as usize, args, 
+            master.workers.clone(), 
+            master.idle_tx.clone(), 
+            master.completed_operations.clone(), 
+            master.failed_tx.clone(), 
+            master.retry_operation_tx.clone()
+        ).await;
 
-        tokio::spawn(async move {
-            call_map(counter as usize, args, 
-                        master.workers.clone(), 
-                        master.idle_tx.clone(), 
-                        master.completed_operations.clone(), 
-                        master.failed_tx.clone(), 
-                        master.retry_operation_tx.clone());
-        });
+        counter += 1;
     }
 
     // Run merge.
-
+    data::merge_map_local(task, map_counter);
 
     // Run reduce.
+    let mut counter = 0;
+    while let Some(msg) = fan_in.recv().await {
+        let operation = Operation {proc: {"map".to_string()}, file_path: {file.to_string()}, id: {counter}};
+        
+        let worker = idle_worker_rx.recv().await.unwrap();
+        let args = RunArgs { id: (counter), file_path: (file.to_string()) };
+        
+        call_reduce(counter as usize, args, 
+            master.workers.clone(), 
+            master.idle_tx.clone(), 
+            master.completed_operations.clone(), 
+            master.failed_tx.clone(), 
+            master.retry_operation_tx.clone()
+        ).await;
+
+        counter += 1;
+    }
+
 
     // Start the RPC Server.
     tokio::spawn(async move {

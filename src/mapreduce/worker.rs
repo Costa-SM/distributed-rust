@@ -173,14 +173,14 @@ impl Worker {
 /* Worker Main Function ***********************************************************************************************/
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut worker = Worker::new_worker(0, "HostA".to_string(), "http://[::1]:8080".to_string());
+    let mut worker = Worker::new_worker(0, "[::1]:8081".to_string(), "http://[::1]:5000".to_string());
     
     // Worker must wait for registration to complete before doing anything else.
     worker.register().await;
 
     // Since registration is complete, start up the RPC server, and perform other tasks.
     let address = "[::1]:8081".parse().unwrap();
-    let worker = Worker::new_worker(0, "HostA".to_string(), "MasterA".to_string());
+    let worker = Worker::new_worker(0, "[::1]:8081".to_string(), "http://[::1]:5000".to_string());
     
     Server::builder().add_service(RunnerServer::new(worker))
     .serve(address)
