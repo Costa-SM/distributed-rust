@@ -1,4 +1,3 @@
-use std::sync::{Arc, Mutex};
 use serde::{Serialize, Deserialize};
 use tokio::sync::mpsc::{self, Sender, Receiver};
 
@@ -28,12 +27,12 @@ pub struct Task {
     pub num_map_files: i32,
 
     // Channels for data
-    pub input_chan: (Sender<Vec<u8>>, Receiver<Vec<u8>>),
-    pub output_chan: (Sender<Vec<KeyValue>>, Receiver<Vec<KeyValue>>),
+    pub input_chan: Receiver<Vec<u8>>,
+    pub output_chan: Sender<Vec<KeyValue>>,
 
     // Channels for file paths
-    pub input_file_path_chan: (Sender<String>, Receiver<String>),
-    pub output_file_path_chan: (Sender<String>, Receiver<String>),
+    pub input_file_path_chan: Receiver<String>,
+    pub output_file_path_chan: Sender<String>,
 }
 
 impl Task {
@@ -49,12 +48,12 @@ impl Task {
             num_map_files: 0,
             
             // Channels for data
-            input_chan: mpsc::channel(1),
-            output_chan: mpsc::channel(1),
+            input_chan: mpsc::channel(1).1,
+            output_chan: mpsc::channel(1).0,
 
             // Channels for file paths
-            input_file_path_chan: mpsc::channel(1),
-            output_file_path_chan: mpsc::channel(1),
+            input_file_path_chan: mpsc::channel(1).1,
+            output_file_path_chan: mpsc::channel(1).0,
         };
 
         return task;

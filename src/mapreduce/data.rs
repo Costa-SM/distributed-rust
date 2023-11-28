@@ -175,7 +175,7 @@ pub fn fan_reduce_file_path(num_reduce_jobs: i32) -> Receiver<String> {
 }
 
 // Reads input file and split it into files smaller than chunkSize.
-fn split_data(file_name: &str, chunk_size: usize) -> usize {
+pub fn split_data(file_name: &str, chunk_size: usize) -> usize {
     let mut file = match File::open(file_name) {
         Ok(file) => file,
         Err(e) => {
@@ -289,7 +289,7 @@ pub fn fan_in_data(num_files: i32) -> Receiver<Vec<u8>> {
 // fanOutData will run a goroutine that receive data on the one-way channel and will
 // proceed to store it in their final destination. The data will come out after the
 // reduce phase of the mapreduce model.
-pub fn fun_out_data() -> (Sender<Vec<KeyValue>>, Receiver<bool>) {
+pub fn fan_out_data() -> (Sender<Vec<KeyValue>>, Receiver<bool>) {
     let (output_tx, output_rx) = mpsc::channel::<Vec<KeyValue>>(REDUCE_BUFFER_SIZE);
     let (done_tx, done_rx) = mpsc::channel(1);
     let mut reduce_counter = 0;
