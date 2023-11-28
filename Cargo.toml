@@ -34,8 +34,3 @@ path = "src/mapreduce/master.rs"
 [[bin]]
 name = "worker"
 path = "src/mapreduce/worker.rs"
-
-# main
-[[bin]]
-name = "main"
-path = "src/mapreduce/main.rs"

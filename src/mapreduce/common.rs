@@ -44,8 +44,8 @@ impl Task {
             reduce,
 
             // Jobs
-            num_reduce_jobs: 0,
-            num_map_files: 0,
+            num_reduce_jobs: 1,
+            num_map_files: 1,
             
             // Channels for data
             input_chan: mpsc::channel(1).1,

@@ -38,6 +38,7 @@ pub fn store_local(task: &common::Task, id_map_task: i32, data: &Vec<common::Key
     for r in 0..task.num_reduce_jobs {
         let file_path = path::Path::new(REDUCE_PATH).join(reduce_name(id_map_task, r));
         let mut file = File::create(&file_path).expect("Error creating file");
+        println!("Saving to file: {}", file_path.to_string_lossy());
         
         for kv in data {
             if (task.shuffle)(task, kv.key.clone()) == r {
@@ -119,6 +120,7 @@ pub fn merge_reduce_local(reduce_counter: i32) -> io::Result<()> {
 // NOTE: TESTED
 pub fn load_local(id_reduce: i32) -> io::Result<Vec<common::KeyValue>> {
     let file_path = path::Path::new(REDUCE_PATH).join(merge_reduce_name(id_reduce));
+    println!("Opening file: {}", file_path.to_string_lossy());
 
     let file = File::open(&file_path)?;
     let reader = BufReader::new(file);

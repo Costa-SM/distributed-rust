@@ -48,6 +48,7 @@ impl Runner for Worker {
 
                 // Store the result locally.
                 let local_store = data::store_local(&self.task, args.id, &map_result);
+                data::merge_map_local(&self.task, 1);
 
                 match local_store {
                     Ok(_) => {
@@ -89,10 +90,7 @@ impl Runner for Worker {
         match file_opening {
             Ok(ref mut map_result) => {
                 let reduce_result = (self.task.reduce)(map_result);
-
-                for pair in reduce_result {
-                    println!("{}: {}", pair.key, pair.value);
-                }
+                println!("Finished reduce ID: {}, Path: {}", args.id, args.file_path.clone());
             }
 
             Err(error) => {
@@ -101,10 +99,6 @@ impl Runner for Worker {
             }
         }
         
-        
-        
-
-
         Ok(Response::new(common_rpc::EmptyMessage {
         }))
     }
