@@ -4,6 +4,8 @@ use std::sync::mpsc::{self, Sender, Receiver};
 use std::sync::{Arc, Mutex};
 
 use crate::common;
+use crate::data;
+use crate::word_count;
 
 /* Tonic RPC generated stubs ******************************************************************************************/
 use common_rpc::register_client::RegisterClient;              // Worker is the client in the register service.

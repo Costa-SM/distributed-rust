@@ -1,14 +1,29 @@
 use std::fs;
 use std::net::{TcpListener, TcpStream};
+use std::os::unix::net::SocketAddr;
 use std::sync::mpsc;
+use tonic::{transport::Server, Request, Response, Status};
+
+pub mod common_rpc {
+    tonic::include_proto!("common_rpc");                        // This string must match the proto package name.
+}
+
+use common_rpc::register_server::{Register, RegisterServer};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio::sync::mpsc::channel;
 use std::io;
 
 use crate::common::{KeyValue, Task};
-use crate::data::{load_local, merge_map_local, remove_contents, store_local, REDUCE_PATH};
-// use crate::master::Master;
+use crate::data::{self, load_local, merge_map_local, remove_contents, store_local, REDUCE_PATH,};
+use crate::master::Master;
+use crate::master_remoteworker;
 // use crate::worker::Worker;
+
+/* Basic Definitions **************************************************************************************************/
+const IDLE_WORKER_BUFFER: usize = 100;
+const FAILED_WORKER_BUFFER: usize = 100;
+const RETRY_OPERATION_BUFFER: usize = 100;
 
 // RunSequential will ensure that map and reduce function runs in
 // a single-core linearly. The Task is passed from the calling package
@@ -53,86 +68,100 @@ pub async fn run_sequential(task: &mut Task, output_chan_tx: tokio::sync::mpsc::
 // the operations to be executed in order to complete the task.
 // 	- task: the Task object that contains the mapreduce operation.
 //  - hostname: the tcp/ip address on which it will listen for connections.
-// pub async fn run_master(task: &Task, hostname: String) {
-//     let mut err: Option<io::Error> = None;
-//     let master: Arc<Mutex<Master>> = Arc::new(Mutex::new(Master::new(&hostname)));
+// #[tokio::main]
+pub async fn run_master(task: tokio::sync::Mutex<Task>, address: std::net::SocketAddr, num_files: usize) {
+    // Channels for idle and failed workers, as well as fault tolerance.
+    let (idle_worker_tx, 
+        mut idle_worker_rx) = channel::<master_remoteworker::RemoteWorker>(IDLE_WORKER_BUFFER);
+    let (fail_worker_tx, 
+        mut fail_worker_rx) = channel::<master_remoteworker::RemoteWorker>(FAILED_WORKER_BUFFER);
+    let (retry_operation_tx, 
+        mut retry_operation_rx) = channel(RETRY_OPERATION_BUFFER);
+    
+    let mut master = Master::new_master(address, idle_worker_tx, fail_worker_tx, retry_operation_tx);
 
-//     println!("Running Master on {}", hostname);
+    let fan_in = data::fan_in_file_path(num_files as i32);
 
-//     // Create a reduce directory to store intermediate reduce files.
-//     let _ = fs::create_dir(REDUCE_PATH);
-//     let _ = remove_contents(REDUCE_PATH);
+    master.task = task;
 
-//     {
-//         let mut master = master.lock().unwrap();
-//         master.task = Some(task.clone());
-//         master.rpc_server = Some(rpc::Server::new());
+    master.start_rpc(address).await;
 
-//         if let Some(ref mut rpc_server) = master.rpc_server {
-//             rpc_server.register(master.clone());
+    println!("Running Master on {}", address);
 
-//             // Handle errors here
-//             if let Err(e) = err {
-//                 println!("Failed to register RPC server. Error: {:?}", e);
-//                 return;
-//             }
-//         }
+    // Create a reduce directory to store intermediate reduce files.
+    // let _ = fs::create_dir(REDUCE_PATH);
+    // let _ = remove_contents(REDUCE_PATH);
 
-//         let listener = match TcpListener::bind(&master.address) {
-//             Ok(listener) => listener,
-//             Err(e) => {
-//                 println!("Failed to start TCP server. Error: {:?}", e);
-//                 return;
-//             }
-//         };
+    // {
+    //     let mut master = master.lock().unwrap();
+    //     master.task = Some(task.clone());
+    //     master.rpc_server = Some(rpc::Server::new());
 
-//         master.listener = Some(listener.try_clone().unwrap());
-//     }
+    //     if let Some(ref mut rpc_server) = master.rpc_server {
+    //         rpc_server.register(master.clone());
 
-//     let master_clone = Arc::clone(&master);
+    //         // Handle errors here
+    //         if let Err(e) = err {
+    //             println!("Failed to register RPC server. Error: {:?}", e);
+    //             return;
+    //         }
+    //     }
 
-//     // Start MapReduce Operation
-//     tokio::spawn(async move {
-//         let master = master_clone.lock().unwrap();
-//         master.accept_multiple_connections();
-//     });
+    //     let listener = match TcpListener::bind(&master.address) {
+    //         Ok(listener) => listener,
+    //         Err(e) => {
+    //             println!("Failed to start TCP server. Error: {:?}", e);
+    //             return;
+    //         }
+    //     };
 
-//     let master_clone = Arc::clone(&master);
-//     tokio::spawn(async move {
-//         let master = master_clone.lock().unwrap();
-//         master.handle_failing_workers();
-//     });
+    //     master.listener = Some(listener.try_clone().unwrap());
+    // }
 
-//     // Schedule map operations
-//     let map_operations = {
-//         let master = master.lock().unwrap();
-//         master.schedule(task, "Worker.RunMap", task.input_file_path_chan.clone())
-//     };
+    // let master_clone = Arc::clone(&master);
 
-//     // Merge the result of multiple map operations with the same reduceId into a single file
-//     merge_map_local(task, map_operations);
+    // // Start MapReduce Operation
+    // tokio::spawn(async move {
+    //     let master = master_clone.lock().unwrap();
+    //     master.accept_multiple_connections();
+    // });
 
-//     // Schedule reduce operations
-//     let reduce_file_path_chan = fan_reduce_file_path(task.num_reduce_jobs);
-//     let reduce_operations = {
-//         let master = master.lock().unwrap();
-//         master.schedule(task, "Worker.RunReduce", reduce_file_path_chan)
-//     };
+    // let master_clone = Arc::clone(&master);
+    // tokio::spawn(async move {
+    //     let master = master_clone.lock().unwrap();
+    //     master.handle_failing_workers();
+    // });
 
-//     merge_reduce_local(reduce_operations);
+    // // Schedule map operations
+    // let map_operations = {
+    //     let master = master.lock().unwrap();
+    //     master.schedule(task, "Worker.RunMap", task.input_file_path_chan.clone())
+    // };
 
-//     println!("Closing Remote Workers.");
-//     {
-//         let master = master.lock().unwrap();
-//         for worker in &master.workers {
-//             if let Err(e) = worker.call_remote_worker("Worker.Done", &(), &()) {
-//                 println!("Failed to close Remote Worker. Error: {:?}", e);
-//             }
-//         }
-//     }
+    // // Merge the result of multiple map operations with the same reduceId into a single file
+    // merge_map_local(task, map_operations);
 
-//     println!("Done.");
-// }
+    // // Schedule reduce operations
+    // let reduce_file_path_chan = fan_reduce_file_path(task.num_reduce_jobs);
+    // let reduce_operations = {
+    //     let master = master.lock().unwrap();
+    //     master.schedule(task, "Worker.RunReduce", reduce_file_path_chan)
+    // };
+
+    // merge_reduce_local(reduce_operations);
+
+    // println!("Closing Remote Workers.");
+    // {
+    //     let master = master.lock().unwrap();
+    //     for worker in &master.workers {
+    //         if let Err(e) = worker.call_remote_worker("Worker.Done", &(), &()) {
+    //             println!("Failed to close Remote Worker. Error: {:?}", e);
+    //         }
+    //     }
+    // }
+
+    println!("Done.");
+}
 
 // // RunWorker will run a instance of a worker. It'll initialize and then try to register with
 // // master.

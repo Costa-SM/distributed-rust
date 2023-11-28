@@ -2,12 +2,13 @@ mod common;
 mod data;
 mod mapreduce;
 mod master;
+mod master_remoteworker;
 mod word_count;
 mod worker;
 
-use tokio::runtime;
 use clap::{App, Arg};
-use std::fs;
+use std::{fs, str::FromStr};
+use tokio::runtime;
 
 fn main() {
     let matches = App::new("MapReduce")
@@ -107,7 +108,9 @@ fn main() {
         .parse::<i32>()
         .unwrap(); // Parse to i32
 
-    let file = matches.value_of("file").unwrap_or_else(|| "files/pg1342.txt");
+    let file = matches
+        .value_of("file")
+        .unwrap_or_else(|| "files/pg1342.txt");
     let chunk_size = matches
         .value_of("chunksize")
         .unwrap_or_else(|| "102400")
@@ -121,7 +124,9 @@ fn main() {
         .parse::<u16>()
         .unwrap(); // Parse to u16
 
-    let master = matches.value_of("master").unwrap_or_else(|| "localhost:5000");
+    let master = matches
+        .value_of("master")
+        .unwrap_or_else(|| "localhost:5000");
 
     let n_ops = matches
         .value_of("fail")
@@ -132,13 +137,17 @@ fn main() {
     let _ = fs::create_dir(data::MAP_PATH);
     let _ = fs::create_dir(data::RESULT_PATH);
 
-    let mut task = common::Task::new_task(word_count::map_func, word_count::shuffle_func, word_count::reduce_func);
-    task.num_reduce_jobs = reduce_jobs;    
+    let mut task = common::Task::new_task(
+        word_count::map_func,
+        word_count::shuffle_func,
+        word_count::reduce_func,
+    );
+    task.num_reduce_jobs = reduce_jobs;
 
     let rt = runtime::Runtime::new().unwrap();
 
     println!("Running MapReduce in {} mode.", mode);
-    
+
     match mode {
         "sequential" => {
             rt.block_on(async {
@@ -161,31 +170,40 @@ fn main() {
                 // Wait for the output channel to close
                 wait_for_it.recv().await.unwrap();
             });
-        },
+        }
         "distributed" => match node_type {
             "master" => {
-                println!("Node type: {}", node_type);
-                println!("Reduce jobs: {}", reduce_jobs);
-                println!("Address: {}", addr);
-                println!("Port: {}", port);
-                println!("File: {}", file);
-                println!("Chunk size: {}", chunk_size);
+                rt.block_on(async {
+                    println!("Node type: {}", node_type);
+                    println!("Reduce jobs: {}", reduce_jobs);
+                    println!("Address: {}", addr);
+                    println!("Port: {}", port);
+                    println!("File: {}", file);
+                    println!("Chunk size: {}", chunk_size);
 
-                if let Err(err) = data::remove_contents(data::MAP_PATH) {
-                    eprintln!("Error removing contents: {}", err);
-                }
-                if let Err(err) = data::remove_contents(data::RESULT_PATH) {
-                    eprintln!("Error removing contents: {}", err);
-                }
+                    if let Err(err) = data::remove_contents(data::MAP_PATH) {
+                        eprintln!("Error removing contents: {}", err);
+                    }
+                    if let Err(err) = data::remove_contents(data::RESULT_PATH) {
+                        eprintln!("Error removing contents: {}", err);
+                    }
 
-                let hostname = format!("{}:{}", addr, port);
+                    // Use to_socket_addrs to handle both IP addresses and domain names
+                    let socket_addrs: Vec<SocketAddr> = (addr, port).to_socket_addrs().expect("Unable to resolve address").collect();
 
-                let num_files = data::split_data(file, chunk_size);
+                    // Note: If you expect multiple addresses, you may want to choose one from the iterator
+                    if let Some(socket_addr) = socket_addrs.get(0) {
+                        println!("Resolved SocketAddr: {}", socket_addr);
+                    } else {
+                        println!("No addresses found");
+                    }
 
-                let fan_in = data::fan_in_file_path(num_files as i32);
-                task.input_file_path_chan = fan_in;
+                    let num_files = data::split_data(file, chunk_size);
 
-                // mapreduce::run_master(&task, hostname);
+                    // task.input_file_path_chan = fan_in;
+
+                    mapreduce::run_master(tokio::sync::Mutex::new(task), address, num_files).await;
+                });
             }
             "worker" => {
                 println!("Node type: {}", node_type);
@@ -205,6 +223,4 @@ fn main() {
         },
         _ => println!("Invalid mode: {}", mode),
     }
-
-
 }

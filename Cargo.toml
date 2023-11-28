@@ -25,16 +25,6 @@ tonic-build = "0.10.2"
 name = "gui"
 path = "src/gui/main.rs"
 
-# Master node
-[[bin]]
-name = "master"
-path = "src/mapreduce/master.rs"
-
-# Worker node
-[[bin]]
-name = "worker"
-path = "src/mapreduce/worker.rs"
-
 # main
 [[bin]]
 name = "main"
