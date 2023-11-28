@@ -1,3 +1,9 @@
+#[derive(Clone, Copy, PartialEq)]
+pub enum NodeStatus {
+    Failed,
+    Default,
+    Finished,
+}
 #[derive(Clone, Copy)]
 pub enum NodeType {
     Input,
@@ -9,6 +15,7 @@ pub enum NodeType {
 pub struct Node {
     pub id: String,
     pub label: String,
+    pub status: NodeStatus,
     pub node_type: NodeType,
     pub position: egui::Pos2,
 }
@@ -19,8 +26,15 @@ impl Node {
             .default_pos(self.position.clone())
             .movable(false)
             .show(ui.ctx(), |ui: &mut egui::Ui| {
+                let color: egui::Color32 = if self.status == NodeStatus::Failed {
+                    egui::Color32::DARK_RED
+                } else if self.status == NodeStatus::Finished {
+                    egui::Color32::DARK_GREEN
+                } else {
+                    egui::Color32::DARK_GRAY
+                };
                 egui::Frame::none()
-                    .stroke(egui::Stroke::new(2.0, egui::Color32::DARK_GRAY))
+                    .stroke(egui::Stroke::new(2.0, color))
                     .inner_margin(egui::Margin::same(10.0))
                     .rounding(5.0)
                     .show(ui, |ui: &mut egui::Ui| {

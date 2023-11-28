@@ -1,7 +1,7 @@
 use egui::emath::Numeric;
 use std::io::Read;
 
-use crate::node::{Node, NodeType};
+use crate::node::{Node, NodeStatus, NodeType};
 use crate::utils::extract_file_name_from_path;
 use crate::worker::Worker;
 
@@ -206,6 +206,7 @@ impl MapReduceApp {
         self.nodes.push(Node {
             id: extract_file_name_from_path(&self.opened_file),
             label: extract_file_name_from_path(&self.opened_file),
+            status: NodeStatus::Default,
             position: egui::Pos2::new(input_node_x, input_node_y),
             node_type: NodeType::Input,
         });
@@ -216,6 +217,7 @@ impl MapReduceApp {
         self.nodes.push(Node {
             id: "result".to_string(),
             label: "result".to_string(),
+            status: NodeStatus::Default,
             position: egui::Pos2::new(result_node_x, result_node_y),
             node_type: NodeType::Result,
         });
@@ -240,6 +242,7 @@ impl MapReduceApp {
                     + &(i + 1).to_string()
                     + self.executin_count.to_string().as_str(),
                 label: "map-".to_string() + &(i + 1).to_string(),
+                status: NodeStatus::Default,
                 position: egui::Pos2::new(map_node_x, map_node_y),
                 node_type: NodeType::Map,
             });
@@ -261,6 +264,7 @@ impl MapReduceApp {
                     + &(i % (num_reduce_nodes as i32)).to_string()
                     + self.executin_count.to_string().as_str(), // Id should be something like reduce-1-2
                 label: "reduce-".to_string() + &(i % (num_reduce_nodes as i32)).to_string(),
+                status: NodeStatus::Default,
                 position: egui::Pos2::new(reduce_node_x, reduce_node_y),
                 node_type: NodeType::Reduce,
             };
