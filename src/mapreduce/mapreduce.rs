@@ -1,14 +1,7 @@
 use std::fs;
-use std::net::{TcpListener, TcpStream};
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
-use std::io;
 
 use crate::common::{KeyValue, Task};
 use crate::data::{load_local, merge_map_local, remove_contents, store_local, REDUCE_PATH};
-use crate::master::Master;
-use crate::worker::Worker;
 
 // RunSequential will ensure that map and reduce function runs in
 // a single-core linearly. The Task is passed from the calling package
@@ -17,7 +10,7 @@ use crate::worker::Worker;
 // Notice that this implementation will store data locally. In the distributed
 // version of mapreduce it's common to store the data in the same worker that computed
 // it and just pass a reference to reduce jobs so they can go grab it.
-pub async fn run_sequential(task: &mut Task) {
+pub async fn run_sequential(task: &mut Task, output_chan_tx: tokio::sync::mpsc::Sender<Vec<KeyValue>>) {
     let mut map_counter = 0;
     let mut map_result;
 
@@ -38,15 +31,17 @@ pub async fn run_sequential(task: &mut Task) {
     for r in 0..task.num_reduce_jobs {
         if let Ok(mut data) = load_local(r) {
             let reduced_data = (task.reduce)(&mut data);
-            if let Err(_) = task.output_chan.clone().send(reduced_data.to_vec()).await {
+            if let Err(_) = output_chan_tx.send(reduced_data.to_vec()).await {
                 println!("receiver dropped");
                 return;
             }
         }
     }
     // Close the output channel
-    drop(task.output_chan);
+    drop(output_chan_tx);
 }
+
+// NOTE: the rest of the code is not used, as it'd break the compilation
 
 // RunMaster will start a master node on the map reduce operations.
 // In the distributed model, a Master should serve multiple workers and distribute

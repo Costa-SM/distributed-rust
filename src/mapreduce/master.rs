@@ -1,16 +1,17 @@
 /* General Imports ****************************************************************************************************/
-use tonic::{transport::Server, Request, Response, Status};
-use tokio::sync::mpsc::{Sender, channel};
-use std::sync::{Arc, Mutex};
 mod common;
 mod word_count;
 mod master_remoteworker;
+
+use tonic::{transport::Server, Request, Response, Status};
+use tokio::sync::mpsc::{Sender, channel};
+use std::sync::{Arc, Mutex};
 
 /* Tonic RPC generated stubs ******************************************************************************************/
 use common_rpc::register_server::{Register, RegisterServer};    // Master is the server in the register service.
 use common_rpc::runner_client::RunnerClient;                    // Master is the client in the runner service.
                                                                 // Client can be used without direct implementation.
-use common_rpc::{RegisterArgs, RegisterReply, RunArgs, EmptyMessage};         // Import message types.
+use common_rpc::{RegisterArgs, RegisterReply, RunArgs};         // Import message types.
 
 pub mod common_rpc {
     tonic::include_proto!("common_rpc");                        // This string must match the proto package name.
@@ -65,7 +66,7 @@ impl Register for Master {
         let idle_tx = self.idle_tx.clone();
         
         tokio::spawn(async move {
-            idle_tx.send(new_worker_clone).await;
+            idle_tx.send(new_worker_clone).await.expect("Failed to send new worker to idle channel.");
         });
 
         // Respond to caller with worker number and reduce jobs.
@@ -155,8 +156,7 @@ async fn main() {
          mut idle_worker_rx) = channel::<master_remoteworker::RemoteWorker>(IDLE_WORKER_BUFFER);
     let (fail_worker_tx, 
          mut fail_worker_rx) = channel::<master_remoteworker::RemoteWorker>(FAILED_WORKER_BUFFER);
-    let (retry_operation_tx, 
-         mut retry_operation_rx) = channel(RETRY_OPERATION_BUFFER);
+    let (retry_operation_tx, _) = channel(RETRY_OPERATION_BUFFER);
 
     // Listen to idle channel
     tokio::spawn(async move {
@@ -172,19 +172,27 @@ async fn main() {
                 file_path: {"./src/data/alice.txt".to_string()},
             });
 
-            run_client.run_map(request).await;
+            run_client.run_map(request).await.expect("Failed to run map.");
 
             let request = tonic::Request::new(RunArgs{
                 id: {0},
                 file_path: {"./src/data/alice.txt".to_string()},
             });
-            run_client.run_reduce(request).await;
+            match run_client.run_reduce(request).await {
+                Ok(_) => {
+                    println!("Reduce completed successfully!");
+                }
+                Err(_) => {
+                    std::process::exit(1);
+                }
+            
+            }
         }
     });
 
     // Listen to failed worker channel
     tokio::spawn(async move {
-        while let Some(msg) = fail_worker_rx.recv().await {
+        while let Some(_) = fail_worker_rx.recv().await {
             
         }
     });
@@ -194,5 +202,5 @@ async fn main() {
 
     Server::builder().add_service(RegisterServer::new(master))
     .serve(address)
-    .await;
+    .await.expect("Failed to start RPC server.");
 }

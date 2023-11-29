@@ -16,7 +16,7 @@ pub fn map_func(buffer: &Vec<u8>) -> Vec<KeyValue> {
     };
 
     // Make all characters lowercase, and remove the punctuation. Then, separate words by whitespace.
-    let words = words.to_ascii_lowercase().replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '`', '-'][..], "");
+    let words = words.to_ascii_lowercase().replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '`', '-', '?', '_', '!'][..], "");
     let split = words.split_ascii_whitespace();
     
     // Create a vector to store the words.

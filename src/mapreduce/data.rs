@@ -199,17 +199,17 @@ pub fn split_data(file_name: &str, chunk_size: usize) -> usize {
 
     let mut num_chunks = 0;
     for (i, chunk) in chunks.enumerate() {
-        let output_file_name = format!("test-{}.txt", i);
+        let output_file_name = map_file_name(i as i32);
         let mut output_file = match File::create(&output_file_name) {
             Ok(file) => file,
             Err(e) => {
-                eprintln!("Error creating file {}: {}", output_file_name, e);
+                eprintln!("Error creating file: {}", e);
                 return num_chunks;
             }
         };
 
         if let Err(e) = write!(&mut output_file, "{}", chunk) {
-            eprintln!("Error writing to file {}: {}", output_file_name, e);
+            eprintln!("Error writing to file: {}", e);
             return num_chunks;
         }
 

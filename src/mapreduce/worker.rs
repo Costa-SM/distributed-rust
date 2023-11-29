@@ -1,16 +1,15 @@
 /* General Imports ****************************************************************************************************/
-use tonic::{transport::Server, Request, Response, Status};
-use std::sync::mpsc::{self, Sender, Receiver};
-use std::sync::{Arc, Mutex};
 mod common;
 mod word_count;
 mod data;
+
+use tonic::{transport::Server, Request, Response, Status};
 
 /* Tonic RPC generated stubs ******************************************************************************************/
 use common_rpc::register_client::RegisterClient;              // Worker is the client in the register service.
                                                                 // Client can be used without direct implementation.
 use common_rpc::runner_server::{Runner, RunnerServer};          // Worker is the server in the runner service.
-use common_rpc::{RegisterArgs, RegisterReply, RunArgs, EmptyMessage};   // Import message types.
+use common_rpc::{RegisterArgs, RunArgs, EmptyMessage};   // Import message types.
 
 pub mod common_rpc {
     tonic::include_proto!("common_rpc");                        // This string must match the proto name.
@@ -99,19 +98,14 @@ impl Runner for Worker {
                 println!("Error reading map file: {}", error);
                 std::process::exit(1);
             }
-        }
-        
-        
-        
+        }     
 
-
-        Ok(Response::new(common_rpc::EmptyMessage {
-        }))
+        std::process::exit(0);
     }
 
     async fn done(
         &self,
-        request: Request<EmptyMessage>,
+        _: Request<EmptyMessage>,
     ) -> Result<Response<EmptyMessage>, Status> {
         
         println!("Worker is done.");
@@ -156,13 +150,13 @@ impl Worker {
                     }
         
                     Err(_) => {
-                        panic!("Registration with master failed !")
+                        println!("Registration with master failed !")
                     }
                 }
             }
 
             Err(_) => {
-                panic!("Connection with master has been refused !\nAddress used was: {}", self.master_hostname);
+                println!("Connection with master has been refused !\nAddress used was: {}", self.master_hostname);
             }
         }
     }

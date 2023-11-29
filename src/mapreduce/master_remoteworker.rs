@@ -22,7 +22,3 @@ impl RemoteWorker {
         return worker;
     }
 }
-
-// Call a RemoteWork with the procedure specified in parameters. It will also handle connecting
-// to the server and closing it afterwards.
-// TODO:
