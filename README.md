@@ -66,6 +66,17 @@ cargo run --bin worker
 
 Adjust the parameters as needed, including the number of Workers for effective distributed execution.
 
+### GUI
+
+It's also possible to visualize the progress of the tasks using the GUI built in Rust.
+However, since there are some problems regarding the gRPC configuration, this interface is just for mere visualization.
+
+To open it, just execute:
+
+```bash
+cargo run --bin gui
+```
+
 ## Dependencies
 
 The project uses various libraries and dependencies, including:
