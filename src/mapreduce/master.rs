@@ -106,46 +106,6 @@ impl Master {
   
         master
     }
-
-    // // accept_multiple_connections will handle the connections from multiple workers.
-    // fn accept_multiple_connections(&self, idle_worker_receiver: mpsc::Receiver<Arc<Mutex<RemoteWorker>>>) {
-    //     log::info!("Accepting connections on {}", self.listener.local_addr().unwrap());
-  
-    //     for stream in self.listener.incoming() {
-    //         match stream {
-    //             Ok(conn) => {
-    //                 let task_clone = Arc::clone(&self.task);
-    //                 let workers_mutex_clone = Arc::clone(&self.workers_mutex);
-    //                 let idle_worker_sender_clone = self.idle_worker_chan.clone();
-    //                 let failed_worker_sender_clone = self.failed_worker_chan.clone();
-  
-    //                 thread::spawn(move || {
-    //                     self.handle_connection(conn, task_clone, workers_mutex_clone, idle_worker_sender_clone, failed_worker_sender_clone);
-    //                 });
-    //             }
-    //             Err(e) => log::error!("Failed to accept connection. Error: {}", e),
-    //         }
-    //     }
-  
-    //     log::info!("Stopped accepting connections.");
-    // }
-  
-    // handle_failing_workers will handle workers that fail during an operation.
-    // fn handle_failing_workers(&self) {
-    //     let receiver = Arc::clone(&self.failed_worker_chan.1); // Wrap in Arc<Mutex<...>> for cloning
-    //     let workers_mutex = self.workers.clone();
-
-    //     let sync_code = task::spawn(async move {
-    //         while let Some(failed_worker) = receiver.recv().await {
-    //             let mut workers = workers_mutex.lock().unwrap();
-    //             workers.retain(|worker| worker.id != failed_worker.id);
-    //             println!("Removing worker {} from the master list.", failed_worker.id);
-    //         }
-    //     });
-
-    //     // You can choose to await the task if you want to wait for it to finish
-    //     tokio::runtime::Handle::current().block_on(sync_code).unwrap();
-    // }
 }
 
 /* Master Main Function ***********************************************************************************************/
