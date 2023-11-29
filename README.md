@@ -36,6 +36,14 @@ The project is divided into several modules:
 
 - **`main`:** The entry point of the program, argument configuration, and main logic to determine the execution mode.
 
+## Compiling the Program
+
+To compile the program and download all external dependencies, just run the following command:
+
+```bash
+cargo build
+```
+
 ## Running the Program
 
 ### Sequential Mode
